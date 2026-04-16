@@ -41,6 +41,22 @@
 </dependencies>
 
   <build>
+    <plugins>
+      <!-- exec-maven-plugin for running the application with JVM module access options -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <configuration>
+          <systemProperties>
+            <property>
+              <key>java.util.logging.config.file</key>
+              <value>logging.properties</value>
+            </property>
+          </systemProperties>
+        </configuration>
+      </plugin>
+    </plugins>
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
