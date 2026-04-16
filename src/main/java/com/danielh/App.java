@@ -1,15 +1,18 @@
 package com.danielh;
 
 import java.io.File;
+import java.util.List;
 import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.simulation.*;
 import info.openrocket.core.startup.OpenRocketCore;
-import info.openrocket.core.startup.Application;
 import info.openrocket.core.document.OpenRocketDocument;
 import info.openrocket.core.document.OpenRocketDocumentFactory;
 import info.openrocket.core.document.Simulation;
 import info.openrocket.core.file.GeneralRocketLoader;
 import info.openrocket.core.file.GeneralRocketSaver;
+import info.openrocket.core.motor.*;
+import info.openrocket.core.database.motor.MotorDatabase;
+import info.openrocket.core.startup.Application;
 
 public class App {
     public static void main(String[] args) {
@@ -39,19 +42,40 @@ public class App {
         motorMount.setOuterRadius(0.012); // 1.2cm radius
         bodyTube.addChild(motorMount);
 
-        // Configure motor mount for H268 motor
-        // Note: Setting a motor requires accessing the OpenRocket motor database singleton,
-        // which is loaded asynchronously on initialization. In a production application,
-        // you would either:
-        // 1. Load a pre-configured rocket file (with motor already set) using loadRocketFromFile()
-        // 2. Access the motor database after ensuring it's fully loaded
-        //
-        // For now, we configure the motor mount but set no actual motor
+        // Configure motor mount and add H268 motor
         try {
             motorMount.setMotorMount(true);
-            System.out.println("Motor mount configured (designate for H268 motors)");
+            
+            // Get the motor database through Guice
+            MotorDatabase motorDatabase = Application.getInjector().getInstance(MotorDatabase.class);
+            
+            // Find the H268 motor
+            // findMotors(digest, type, manufacturer, designation, diameter, length)
+            List<? extends Motor> motors = motorDatabase.findMotors(
+                null,           // digest - null to ignore
+                null,           // Motor.Type - null to ignore
+                null,           // manufacturer - null to ignore  
+                "H268",         // designation - the motor model
+                Double.NaN,     // diameter - NaN to ignore
+                Double.NaN      // length - NaN to ignore
+            );
+            
+            if (!motors.isEmpty()) {
+                Motor h268Motor = motors.get(0);
+                
+                // Get the motor configuration and set the motor
+                MotorConfiguration motorConfig = motorMount.getDefaultMotorConfig();
+                motorConfig.setMotor(h268Motor);
+                
+                // Verify motor was set
+                Motor setMotor = motorConfig.getMotor();
+                System.out.println("Motor mount configured with H268 motor: " + (setMotor != null ? setMotor.getDesignation() : "null"));
+            } else {
+                System.out.println("H268 motor not found in database");
+            }
         } catch (Exception e) {
-            System.out.println("Error configuring motor mount: " + e.getMessage());
+            System.out.println("Error configuring motor: " + e.getMessage());
+            e.printStackTrace();
         }
 
         // Create simulation
