@@ -3,6 +3,7 @@ package com.danielh;
 import java.util.ArrayList;
 import java.io.File;
 import java.util.List;
+import io.jenetics.*;
 import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.startup.OpenRocketCore;
 import info.openrocket.core.document.OpenRocketDocument;
@@ -12,31 +13,146 @@ import info.openrocket.core.file.GeneralRocketSaver;
 
 public class App {
     public static void main(String[] args) {
-       OpenRocketCore.initialize();
+        OpenRocketCore.initialize();
 
-        try {
-            String rocketPath = "libs\\test_rocket.ork";
+        String rocketPath = "libs\\test_rocket.ork";
+        
+        // Check command line arguments
+        if (args.length > 0 && args[0].equalsIgnoreCase("optimize")) {
+            // Run genetic algorithm optimization
+            int population = 50;  // Default
+            int generations = 100;  // Default
             
-            OpenRocketDocument document = loadRocketDocument(new File(rocketPath));
-            if (document == null) return;
-            
-            Rocket rocket = document.getRocket();
-            Simulation sim = new Simulation(rocket);
-            sim.simulate();
-
-            // Extract actual mass data from the rocket design
-            System.out.println("\n=== ROCKET COMPONENT DATA ===");
-            extractAndDisplayMassData(rocket);
-
-            // Run a single simulation and print results
-            SimulationResult result = runSimulationAndExtractData(rocket);
-            if (result != null) {
-                result.print();
+            // Parse optional custom parameters
+            if (args.length >= 3) {
+                try {
+                    population = Integer.parseInt(args[1]);
+                    generations = Integer.parseInt(args[2]);
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid parameters. Usage: App optimize [population] [generations]");
+                    System.err.println("Using defaults: population=50, generations=100");
+                }
             }
+            
+            runOptimization(population, generations, rocketPath);
+        } else {
+            // Default: Run baseline simulation
+            try {
+                OpenRocketDocument document = loadRocketDocument(new File(rocketPath));
+                if (document == null) return;
+                
+                Rocket rocket = document.getRocket();
+                Simulation sim = new Simulation(rocket);
+                sim.simulate();
+
+                // Extract actual mass data from the rocket design
+                System.out.println("\n=== ROCKET DATA ===");
+                extractAndDisplayMassData(rocket);
+
+                // Run a single simulation and print results
+                SimulationResult result = runSimulationAndExtractData(rocket);
+                if (result != null) {
+                    result.print();
+                }
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    /**
+     * Run genetic algorithm optimization with detailed reporting
+     */
+    private static void runOptimization(int population, int generations, String rocketPath) {
+        try {
+            System.out.println("Running optimization (this may take a while)...");
+            System.out.println("Population: " + population + ", Generations: " + generations);
+            System.out.println("");
+            
+            // Get baseline parameters and performance
+            OpenRocketDocument baselineDoc = loadRocketDocument(new File(rocketPath));
+            if (baselineDoc == null) {
+                System.err.println("Failed to load baseline rocket");
+                return;
+            }
+            Rocket baselineRocket = baselineDoc.getRocket();
+            
+            // Extract baseline parameters
+            double baselineNoseCone = getComponentLength(baselineRocket, NoseCone.class);
+            double baselineBodyTube = getComponentLength(baselineRocket, BodyTube.class);
+            
+            // Run baseline simulation
+            SimulationResult baselineResult = runSimulationAndExtractData(baselineRocket);
+            
+            // Run genetic algorithm optimization
+            OptimizationReport report = RocketOptimizer.optimize(population, generations, rocketPath);
+            
+            if (report == null) {
+                System.err.println("Optimization failed");
+                return;
+            }
+            
+            // Store baseline results in report
+            report.baselineNoseCone = baselineNoseCone;
+            report.baselineBodyTube = baselineBodyTube;
+            if (baselineResult != null) {
+                report.baselineApogee = baselineResult.apogee;
+                report.baselineTimeToApogee = baselineResult.timeToApogee;
+                report.baselineMaxVelocity = baselineResult.maxVelocity;
+                report.baselineMaxAcceleration = baselineResult.maxAcceleration;
+            }
+            
+            // Run final simulation with optimized parameters
+            OpenRocketDocument optimizedDoc = loadRocketDocument(new File(rocketPath));
+            if (optimizedDoc != null) {
+                Rocket optimizedRocket = optimizedDoc.getRocket();
+                
+                // Apply optimized parameters
+                setNoseConeLength(optimizedRocket, report.optimizedNoseCone);
+                setBodyTubeLength(optimizedRocket, report.optimizedBodyTube);
+                
+                // Run simulation
+                SimulationResult optimizedResult = runSimulationAndExtractData(optimizedRocket);
+                if (optimizedResult != null) {
+                    report.optimizedApogee = optimizedResult.apogee;
+                    report.optimizedTimeToApogee = optimizedResult.timeToApogee;
+                    report.optimizedMaxVelocity = optimizedResult.maxVelocity;
+                    report.optimizedMaxAcceleration = optimizedResult.maxAcceleration;
+                }
+            }
+            
+            // Generate and display detailed report
+            report.generateReport();
+            
         } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
+            System.err.println("Optimization failed: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Helper method to extract component length
+     */
+    private static double getComponentLength(Rocket rocket, Class<?> componentType) {
+        try {
+            for (RocketComponent child : rocket.getChildren()) {
+                if (child instanceof RocketComponent) {
+                    for (RocketComponent subchild : child.getChildren()) {
+                        if (componentType.isInstance(subchild)) {
+                            java.lang.reflect.Method getLength = subchild.getClass().getMethod("getLength");
+                            Object lenObj = getLength.invoke(subchild);
+                            if (lenObj instanceof Number) {
+                                return ((Number) lenObj).doubleValue();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return 0.0;
     }
     
     private static OpenRocketDocument loadRocketDocument(File file) {
@@ -63,19 +179,16 @@ public class App {
     
     private static void extractAndDisplayMassData(Rocket rocket) {
         try {
-            System.out.println("\nComponent Mass Breakdown:");
+            System.out.println("\nComponent Breakdown:");
             System.out.println("─────────────────────────────────────────");
             
             double[] totals = new double[1];  // [totalMass]
             totals[0] = 0.0;
-            double motorMass = 0.359;
             
             extractMassRecursive(rocket, 0, totals);
             
             System.out.println("─────────────────────────────────────────");
             System.out.println("TOTAL DRY MASS: " + String.format("%.4f", totals[0]) + " kg");
-            System.out.println("TOTAL MOTOR MASS: " + String.format("%.4f", motorMass) + " kg");
-            System.out.println("TOTAL WET MASS: " + String.format("%.4f", totals[0] + motorMass) + " kg");
         } catch (Exception e) {
             System.err.println("Error extracting mass data: " + e.getMessage());
         }
