@@ -1,0 +1,27 @@
+# Build artifacts
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# Maven
+.m2/
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
