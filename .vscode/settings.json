@@ -1,0 +1,6 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.project.referencedLibraries": [
+        "libs/OpenRocket-23.09.jar"
+    ]
+}
