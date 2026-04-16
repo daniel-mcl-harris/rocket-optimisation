@@ -55,19 +55,20 @@ public class RocketOptimizer {
             DoubleChromosome.of(BODY_TUBE_RANGE)
         );
         
-        // Build the GA engine with elitism to preserve best solutions
+        // Build the GA engine with elitism and increased population for diversity
         Engine<DoubleGene, Double> engine = Engine
             .builder(
-                f -> fitnessFunction(f),  // Fitness function
-                genotype                   // Genotype template
+                f -> fitnessFunction(f),
+                genotype
             )
             .populationSize(populationSize)
-            .selector(new TournamentSelector<>(3))  // Balanced selection pressure (was 50)
+            .selector(new TournamentSelector<>(3))  
             .alterers(
-                new Mutator<>(0.5)  // 50% mutation rate for exploration
+                new Mutator<>(0.25)  
             )
-            .survivorsSelector(new EliteSelector<>())  // Always keep best individuals
-            .offspringSelector(new TournamentSelector<>(3))  // Select best for reproduction
+            .survivorsSelector(new EliteSelector<>())
+            .offspringSelector(new TournamentSelector<>(3))
+            .minimizing()  
             .build();
         
         // Run the GA
@@ -79,7 +80,7 @@ public class RocketOptimizer {
         
         // Progress tracking
         final Phenotype<DoubleGene, Double>[] bestIndividual = new Phenotype[1];
-        final int updateInterval = Math.max(1, generations / 20);  // Show progress ~20 times
+        final int updateInterval = Math.max(1, generations / 100);  // Show progress ~20 times
         
         engine.stream()
             .limit(generations)
