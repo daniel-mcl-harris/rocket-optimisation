@@ -90,7 +90,10 @@ public class App {
             SimulationResult baselineResult = runSimulationAndExtractData(baselineRocket);
             
             // Run genetic algorithm optimization
-            OptimizationReport report = RocketOptimizer.optimize(population, generations, rocketPath);
+            OptimizationReport report = RocketOptimizer.optimize(population, generations, rocketPath,
+                                                                   baselineNoseCone, baselineBodyTube,
+                                                                   baselineFinRootChord, baselineFinTipChord,
+                                                                   baselineFinHeight, baselineFinSweepLength);
             
             if (report == null) {
                 System.err.println("Optimization failed");
@@ -198,32 +201,42 @@ public class App {
     }
     
     /**
-     * Helper method to extract fin parameter via reflection
+     * Helper method to extract fin parameter via reflection (recursive search)
      */
     private static double getFinParameter(Rocket rocket, String methodName) {
         try {
-            for (RocketComponent child : rocket.getChildren()) {
-                if (child instanceof RocketComponent) {
-                    for (RocketComponent subchild : child.getChildren()) {
-                        String className = subchild.getClass().getSimpleName();
-                        if (className.contains("Fin")) {
-                            try {
-                                java.lang.reflect.Method method = subchild.getClass().getMethod(methodName);
-                                Object result = method.invoke(subchild);
-                                if (result instanceof Number) {
-                                    return ((Number) result).doubleValue();
-                                }
-                            } catch (Exception e) {
-                                // Method doesn't exist on this fin type
-                            }
-                        }
+            Double result = getFinParameterRecursive(rocket, methodName);
+            return result != null ? result : 0.0;
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+    
+    /**
+     * Recursively search for fin parameter
+     */
+    private static Double getFinParameterRecursive(RocketComponent component, String methodName) {
+        for (RocketComponent child : component.getChildren()) {
+            String className = child.getClass().getSimpleName();
+            if (className.contains("Fin")) {
+                try {
+                    java.lang.reflect.Method method = child.getClass().getMethod(methodName);
+                    Object result = method.invoke(child);
+                    if (result instanceof Number) {
+                        return ((Number) result).doubleValue();
                     }
+                } catch (Exception e) {
+                    // Try next method or continue searching
                 }
             }
-        } catch (Exception e) {
-            // Ignore
+            
+            // Recursively search children
+            Double result = getFinParameterRecursive(child, methodName);
+            if (result != null) {
+                return result;
+            }
         }
-        return 0.0;
+        return null;
     }
     
     /**

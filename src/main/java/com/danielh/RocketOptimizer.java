@@ -43,7 +43,13 @@ public class RocketOptimizer {
      */
     public static OptimizationReport optimize(int populationSize, 
                                                int generations, 
-                                               String rocketPath) {
+                                               String rocketPath,
+                                               double baselineNose,
+                                               double baselineBody,
+                                               double baselineRootChord,
+                                               double baselineTipChord,
+                                               double baselineHeight,
+                                               double baselineSweepLength) {
         long startTime = System.currentTimeMillis();
         rocketFilePath = rocketPath;
         
@@ -61,6 +67,7 @@ public class RocketOptimizer {
         }
         
         // Define genotype: 6 continuous genes (nose cone length, body tube length, and 4 fin parameters)
+        // Define genotype template: 6 continuous genes with random ranges
         final Genotype<DoubleGene> genotype = Genotype.of(
             DoubleChromosome.of(NOSE_CONE_RANGE),
             DoubleChromosome.of(BODY_TUBE_RANGE),
@@ -70,8 +77,7 @@ public class RocketOptimizer {
             DoubleChromosome.of(FIN_SWEEP_LENGTH_RANGE)
         );
         
-        // Build the GA engine with elitism and increased population for diversity
-        // Build the GA engine with elitism and strong mutation for 2-dimensional search
+        // Build the GA engine with random population
         Engine<DoubleGene, Double> engine = Engine
             .builder(
                 f -> fitnessFunction(f),
@@ -81,7 +87,7 @@ public class RocketOptimizer {
             .selector(new TournamentSelector<>(3))  
             .alterers(
                 new SinglePointCrossover<>(0.5),    // 50% crossover chance
-                new Mutator<>(0.8)                   // 80% mutation (high for 2D space)
+                new Mutator<>(0.8)                   // 80% mutation
             )
             .survivorsSelector(new EliteSelector<>(Math.max(populationSize / 10, 5)))  // Elite 10% or 5, whichever is larger
             .offspringSelector(new TournamentSelector<>(3))
@@ -98,8 +104,22 @@ public class RocketOptimizer {
         System.out.println("─────────────────────────────────────────");
         
         // Progress tracking with ProgressBar library
-        // Track the BEST individual across ALL generations, not just the last one
+        // Evaluate baseline upfront and use it as initial best
+        // This ensures the initial population effectively includes the baseline
+        final Genotype<DoubleGene> baselineGenotype = Genotype.of(
+            DoubleChromosome.of(DoubleGene.of(baselineNose, NOSE_CONE_RANGE.min(), NOSE_CONE_RANGE.max())),
+            DoubleChromosome.of(DoubleGene.of(baselineBody, BODY_TUBE_RANGE.min(), BODY_TUBE_RANGE.max())),
+            DoubleChromosome.of(DoubleGene.of(baselineRootChord, FIN_ROOT_CHORD_RANGE.min(), FIN_ROOT_CHORD_RANGE.max())),
+            DoubleChromosome.of(DoubleGene.of(baselineTipChord, FIN_TIP_CHORD_RANGE.min(), FIN_TIP_CHORD_RANGE.max())),
+            DoubleChromosome.of(DoubleGene.of(baselineHeight, FIN_HEIGHT_RANGE.min(), FIN_HEIGHT_RANGE.max())),
+            DoubleChromosome.of(DoubleGene.of(baselineSweepLength, FIN_SWEEP_LENGTH_RANGE.min(), FIN_SWEEP_LENGTH_RANGE.max()))
+        );
+        double baselineFitness = fitnessFunction(baselineGenotype);
+        final Phenotype<DoubleGene, Double> baselineIndividual = Phenotype.of(baselineGenotype, 1, baselineFitness);
+        
+        // Track the BEST individual across ALL generations, starting with baseline
         final Phenotype<DoubleGene, Double>[] globalBest = new Phenotype[1];
+        globalBest[0] = baselineIndividual;
         final double[] generationCounter = {0};
         
         try (ProgressBar pb = new ProgressBar("Optimization", generations)) {
@@ -112,21 +132,15 @@ public class RocketOptimizer {
                         .min((p1, p2) -> Double.compare(p1.fitness(), p2.fitness()))
                         .orElse(null);
                     
-                    // Update global best if this generation is better
+                    // Update global best if this generation is better than baseline
                     if (generationBest != null) {
-                        if (globalBest[0] == null || generationBest.fitness() < globalBest[0].fitness()) {
+                        if (generationBest.fitness() < globalBest[0].fitness()) {
                             globalBest[0] = generationBest;
-                            System.out.format("new global best found" + globalBest[0]);
                         }
                     }
                     
                     pb.step();
                 });
-        }
-        
-        Phenotype<DoubleGene, Double> best = globalBest[0];
-        if (best == null) {
-            throw new RuntimeException("Optimization failed: No solutions found");
         }
         
         // Ensure System.out is restored before returning report
@@ -135,15 +149,28 @@ public class RocketOptimizer {
         
         System.out.println("─────────────────────────────────────────");
         
-        // Build and return report
+        // Build and return report - use baseline parameters if GA result is worse
         OptimizationReport report = new OptimizationReport(populationSize, generations);
-        report.optimizedNoseCone = best.genotype().get(0).get(0).allele();
-        report.optimizedBodyTube = best.genotype().get(1).get(0).allele();
-        report.optimizedFinRootChord = best.genotype().get(2).get(0).allele();
-        report.optimizedFinTipChord = best.genotype().get(3).get(0).allele();
-        report.optimizedFinHeight = best.genotype().get(4).get(0).allele();
-        report.optimizedFinSweepLength = best.genotype().get(5).get(0).allele();
-        report.bestPhenotype = best;
+        
+        // Use baseline if GA result is worse (remember: more negative = better for minimization)
+        if (globalBest[0].fitness() > baselineFitness) {
+            System.out.println("GA result worse than baseline. Using baseline parameters as final result.");
+            report.optimizedNoseCone = baselineNose;
+            report.optimizedBodyTube = baselineBody;
+            report.optimizedFinRootChord = baselineRootChord;
+            report.optimizedFinTipChord = baselineTipChord;
+            report.optimizedFinHeight = baselineHeight;
+            report.optimizedFinSweepLength = baselineSweepLength;
+        } else {
+            report.optimizedNoseCone = globalBest[0].genotype().get(0).get(0).allele();
+            report.optimizedBodyTube = globalBest[0].genotype().get(1).get(0).allele();
+            report.optimizedFinRootChord = globalBest[0].genotype().get(2).get(0).allele();
+            report.optimizedFinTipChord = globalBest[0].genotype().get(3).get(0).allele();
+            report.optimizedFinHeight = globalBest[0].genotype().get(4).get(0).allele();
+            report.optimizedFinSweepLength = globalBest[0].genotype().get(5).get(0).allele();
+        }
+        
+        report.bestPhenotype = globalBest[0];
         report.executionTimeMs = System.currentTimeMillis() - startTime;
         
         return report;
