@@ -50,6 +50,12 @@
       <artifactId>jenetics</artifactId>
       <version>7.1.0</version>
   </dependency>
+  
+  <dependency>
+      <groupId>me.tongfei</groupId>
+      <artifactId>progressbar</artifactId>
+      <version>0.9.5</version>
+  </dependency>
 </dependencies>
 
   <build>

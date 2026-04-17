@@ -8,6 +8,7 @@ import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.document.OpenRocketDocument;
 import info.openrocket.core.document.Simulation;
 import info.openrocket.core.file.GeneralRocketLoader;
+import me.tongfei.progressbar.ProgressBar;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ public class RocketOptimizer {
     // Gene bounds (in meters)
     private static final DoubleRange NOSE_CONE_RANGE = DoubleRange.of(0.1, 1.0);
     private static final DoubleRange BODY_TUBE_RANGE = DoubleRange.of(0.4, 1.0);
+    private static final DoubleRange BODY_TUBE_DIAMETER_RANGE = DoubleRange.of(0.03, 0.08);  // 3cm to 8cm
     
     // Shared base rocket for cloning
     private static Rocket baseRocket;
@@ -49,10 +51,11 @@ public class RocketOptimizer {
             return null;
         }
         
-        // Define genotype: 2 continuous genes (nose cone length, body tube length)
+        // Define genotype: 3 continuous genes (nose cone length, body tube length, body tube diameter)
         final Genotype<DoubleGene> genotype = Genotype.of(
             DoubleChromosome.of(NOSE_CONE_RANGE),
-            DoubleChromosome.of(BODY_TUBE_RANGE)
+            DoubleChromosome.of(BODY_TUBE_RANGE),
+            DoubleChromosome.of(BODY_TUBE_DIAMETER_RANGE)
         );
         
         // Build the GA engine with elitism and increased population for diversity
@@ -62,53 +65,36 @@ public class RocketOptimizer {
                 genotype
             )
             .populationSize(populationSize)
-            .selector(new TournamentSelector<>(3))  
+            .selector(new TournamentSelector<>(5))  
             .alterers(
                 new Mutator<>(0.25)  
             )
-            .survivorsSelector(new EliteSelector<>())
-            .offspringSelector(new TournamentSelector<>(3))
+            .survivorsSelector(new EliteSelector<>(20))
+            .offspringSelector(new TournamentSelector<>(5))
             .minimizing()  
             .build();
         
         // Run the GA
         System.out.println("\n=== ROCKET DESIGN OPTIMIZATION (Jenetics) ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
-        System.out.println("Optimizing: Nose Cone Length [0.1-1.0 m], Body Tube Length [0.4-1.0 m]");
+        System.out.println("Optimizing: Nose Cone Length [0.1-1.0 m], Body Tube Length [0.4-1.0 m], Body Tube Diameter [0.03-0.08 m]");
         System.out.println("Objective: Maximize Apogee");
         System.out.println("─────────────────────────────────────────");
         
-        // Progress tracking
+        // Progress tracking with ProgressBar library
         final Phenotype<DoubleGene, Double>[] bestIndividual = new Phenotype[1];
-        final int updateInterval = Math.max(1, generations / 100);  // Show progress ~20 times
         
-        engine.stream()
-            .limit(generations)
-            .forEach(result -> {
-                bestIndividual[0] = result.population().stream()
-                    .min((p1, p2) -> Double.compare(p1.fitness(), p2.fitness()))
-                    .orElse(null);
-
-                // Print progress every updateInterval generations
-                int gen = (int) result.generation();
-                if (gen % updateInterval == 0 || gen == 1 || gen == generations) {
-                    int barWidth = 30;
-                    double progress = (double) gen / generations;
-                    int filled = (int) (barWidth * progress);
+        try (ProgressBar pb = new ProgressBar("Optimization", generations)) {
+            engine.stream()
+                .limit(generations)
+                .forEach(result -> {
+                    bestIndividual[0] = result.population().stream()
+                        .min((p1, p2) -> Double.compare(p1.fitness(), p2.fitness()))
+                        .orElse(null);
                     
-                    StringBuilder progressBar = new StringBuilder("[");
-                    for (int i = 0; i < barWidth; i++) {
-                        if (i < filled) progressBar.append("█");
-                        else progressBar.append("░");
-                    }
-                    progressBar.append("] ");
-                    progressBar.append(String.format("%.1f%%", progress * 100));
-                    progressBar.append(" | Gen ");
-                    progressBar.append(gen).append("/").append(generations);
-                    
-                    System.out.println(progressBar.toString());
-                }
-            });
+                    pb.step();
+                });
+        }
         
         Phenotype<DoubleGene, Double> best = bestIndividual[0];
         if (best == null) {
@@ -121,6 +107,7 @@ public class RocketOptimizer {
         OptimizationReport report = new OptimizationReport(populationSize, generations);
         report.optimizedNoseCone = best.genotype().get(0).get(0).allele();
         report.optimizedBodyTube = best.genotype().get(1).get(0).allele();
+        report.optimizedBodyTubeDiameter = best.genotype().get(2).get(0).allele();
         report.bestPhenotype = best;
         report.executionTimeMs = System.currentTimeMillis() - startTime;
         
@@ -129,9 +116,10 @@ public class RocketOptimizer {
     
     private static Double fitnessFunction(Genotype<DoubleGene> genotype) {
         try {
-            // Get gene values from the two chromosomes
+            // Get gene values from the three chromosomes
             double noseConeLength = genotype.get(0).get(0).allele();  // Chromosome 0, Gene 0
             double bodyTubeLength = genotype.get(1).get(0).allele();  // Chromosome 1, Gene 0
+            double bodyTubeDiameter = genotype.get(2).get(0).allele();  // Chromosome 2, Gene 0
             
             // Clone and modify rocket
             Rocket rocket = cloneRocket(baseRocket);
@@ -141,6 +129,7 @@ public class RocketOptimizer {
             
             setNoseConeLength(rocket, noseConeLength);
             setBodyTubeLength(rocket, bodyTubeLength);
+            setBodyTubeDiameter(rocket, bodyTubeDiameter);
             
             // Run simulation (adapted from App.java)
             Simulation simulation = new Simulation(rocket);
@@ -218,6 +207,33 @@ public class RocketOptimizer {
                         if (subchild instanceof BodyTube) {
                             BodyTube bodyTube = (BodyTube) subchild;
                             bodyTube.setLength(length);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+    }
+    
+    /**
+     * Set body tube outer diameter and nose cone base diameter on all components
+     * Nose cone base diameter is kept consistent with body tube outer diameter
+     */
+    private static void setBodyTubeDiameter(Rocket rocket, double diameter) {
+        try {
+            for (RocketComponent child : rocket.getChildren()) {
+                if (child instanceof RocketComponent) {
+                    for (RocketComponent subchild : child.getChildren()) {
+                        // Set body tube outer diameter
+                        if (subchild instanceof BodyTube) {
+                            BodyTube bodyTube = (BodyTube) subchild;
+                            bodyTube.setOuterRadius(diameter / 2.0);
+                        }
+                        // Set nose cone base diameter to match body tube diameter
+                        if (subchild instanceof NoseCone) {
+                            NoseCone noseCone = (NoseCone) subchild;
+                            noseCone.setBaseRadius(diameter / 2.0);
                         }
                     }
                 }

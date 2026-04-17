@@ -81,6 +81,7 @@ public class App {
             // Extract baseline parameters
             double baselineNoseCone = getComponentLength(baselineRocket, NoseCone.class);
             double baselineBodyTube = getComponentLength(baselineRocket, BodyTube.class);
+            double baselineBodyTubeDiameter = getBodyTubeDiameter(baselineRocket);
             
             // Run baseline simulation
             SimulationResult baselineResult = runSimulationAndExtractData(baselineRocket);
@@ -96,6 +97,7 @@ public class App {
             // Store baseline results in report
             report.baselineNoseCone = baselineNoseCone;
             report.baselineBodyTube = baselineBodyTube;
+            report.baselineBodyTubeDiameter = baselineBodyTubeDiameter;
             if (baselineResult != null) {
                 report.baselineApogee = baselineResult.apogee;
                 report.baselineTimeToApogee = baselineResult.timeToApogee;
@@ -111,6 +113,7 @@ public class App {
                 // Apply optimized parameters
                 setNoseConeLength(optimizedRocket, report.optimizedNoseCone);
                 setBodyTubeLength(optimizedRocket, report.optimizedBodyTube);
+                setBodyTubeDiameter(optimizedRocket, report.optimizedBodyTubeDiameter);
                 
                 // Run simulation
                 SimulationResult optimizedResult = runSimulationAndExtractData(optimizedRocket);
@@ -159,7 +162,6 @@ public class App {
         try {
             GeneralRocketLoader loader = new GeneralRocketLoader(file);
             OpenRocketDocument document = loader.load();
-            System.out.println("Document loaded: " + document.getRocket().getName());
             return document;
         } catch (Exception e) {
             System.err.println("Failed to load: " + e.getMessage());
@@ -304,24 +306,6 @@ public class App {
         }
     }
     
-    private static void setBodyTubeDiameter(Rocket rocket, double diameter) {
-        try {
-            for (RocketComponent child : rocket.getChildren()) {
-                if (child instanceof RocketComponent) {
-                    for (RocketComponent subchild : child.getChildren()) {
-                        if (subchild instanceof BodyTube) {
-                            BodyTube bodyTube = (BodyTube) subchild;
-                            bodyTube.setOuterRadius(diameter / 2.0);
-                            System.out.println("  - Set body tube diameter to: " + diameter + " m");
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Error setting body tube diameter: " + e.getMessage());
-        }
-    }
-    
     private static SimulationResult runSimulationAndExtractData(Rocket rocket) {
         try {
             Simulation simulation = new Simulation(rocket);
@@ -382,6 +366,50 @@ public class App {
             // Ignore
         }
         return 0.1;  // Default to 100mm if not found
+    }
+    
+    private static double getBodyTubeDiameter(Rocket rocket) {
+        try {
+            for (RocketComponent child : rocket.getChildren()) {
+                if (child instanceof RocketComponent) {
+                    for (RocketComponent subchild : child.getChildren()) {
+                        if (subchild instanceof BodyTube) {
+                            java.lang.reflect.Method getOuterRadius = subchild.getClass().getMethod("getOuterRadius");
+                            Double radius = (Double) getOuterRadius.invoke(subchild);
+                            if (radius != null) {
+                                return radius * 2.0;  // Return diameter
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return 0.0;
+    }
+    
+    private static void setBodyTubeDiameter(Rocket rocket, double diameter) {
+        try {
+            for (RocketComponent child : rocket.getChildren()) {
+                if (child instanceof RocketComponent) {
+                    for (RocketComponent subchild : child.getChildren()) {
+                        // Set body tube outer diameter
+                        if (subchild instanceof BodyTube) {
+                            BodyTube bodyTube = (BodyTube) subchild;
+                            bodyTube.setOuterRadius(diameter / 2.0);
+                        }
+                        // Set nose cone base diameter to match body tube diameter
+                        if (subchild instanceof NoseCone) {
+                            NoseCone noseCone = (NoseCone) subchild;
+                            noseCone.setBaseRadius(diameter / 2.0);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error setting body tube diameter: " + e.getMessage());
+        }
     }
     
     static class SimulationResult {
