@@ -23,6 +23,12 @@ public class RocketOptimizer {
     private static final DoubleRange NOSE_CONE_RANGE = DoubleRange.of(0.1, 1.0);
     private static final DoubleRange BODY_TUBE_RANGE = DoubleRange.of(0.4, 1.0);
     
+    // Trapezoidal fin parameters (in meters)
+    private static final DoubleRange FIN_ROOT_CHORD_RANGE = DoubleRange.of(0.03, 0.15);
+    private static final DoubleRange FIN_TIP_CHORD_RANGE = DoubleRange.of(0.01, 0.08);
+    private static final DoubleRange FIN_HEIGHT_RANGE = DoubleRange.of(0.03, 0.15);
+    private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.1);
+    
     // Shared base rocket for cloning
     private static Rocket baseRocket;
     private static String rocketFilePath;
@@ -54,10 +60,14 @@ public class RocketOptimizer {
             return null;
         }
         
-        // Define genotype: 2 continuous genes (nose cone length, body tube length)
+        // Define genotype: 6 continuous genes (nose cone length, body tube length, and 4 fin parameters)
         final Genotype<DoubleGene> genotype = Genotype.of(
             DoubleChromosome.of(NOSE_CONE_RANGE),
-            DoubleChromosome.of(BODY_TUBE_RANGE)
+            DoubleChromosome.of(BODY_TUBE_RANGE),
+            DoubleChromosome.of(FIN_ROOT_CHORD_RANGE),
+            DoubleChromosome.of(FIN_TIP_CHORD_RANGE),
+            DoubleChromosome.of(FIN_HEIGHT_RANGE),
+            DoubleChromosome.of(FIN_SWEEP_LENGTH_RANGE)
         );
         
         // Build the GA engine with elitism and increased population for diversity
@@ -82,6 +92,8 @@ public class RocketOptimizer {
         System.out.println("\n=== ROCKET DESIGN OPTIMIZATION (Jenetics) ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
         System.out.println("Optimizing: Nose Cone Length [0.1-1.0 m], Body Tube Length [0.4-1.0 m]");
+        System.out.println("            Fin Root Chord [0.03-0.15 m], Fin Tip Chord [0.01-0.08 m]");
+        System.out.println("            Fin Height [0.03-0.15 m], Fin Sweep Length [0.0-0.1 m]");
         System.out.println("Objective: Maximize Apogee");
         System.out.println("─────────────────────────────────────────");
         
@@ -127,6 +139,10 @@ public class RocketOptimizer {
         OptimizationReport report = new OptimizationReport(populationSize, generations);
         report.optimizedNoseCone = best.genotype().get(0).get(0).allele();
         report.optimizedBodyTube = best.genotype().get(1).get(0).allele();
+        report.optimizedFinRootChord = best.genotype().get(2).get(0).allele();
+        report.optimizedFinTipChord = best.genotype().get(3).get(0).allele();
+        report.optimizedFinHeight = best.genotype().get(4).get(0).allele();
+        report.optimizedFinSweepLength = best.genotype().get(5).get(0).allele();
         report.bestPhenotype = best;
         report.executionTimeMs = System.currentTimeMillis() - startTime;
         
@@ -141,6 +157,10 @@ public class RocketOptimizer {
         try {
             double noseConeLength = genotype.get(0).get(0).allele();
             double bodyTubeLength = genotype.get(1).get(0).allele();
+            double finRootChord = genotype.get(2).get(0).allele();
+            double finTipChord = genotype.get(3).get(0).allele();
+            double finHeight = genotype.get(4).get(0).allele();
+            double finSweepLength = genotype.get(5).get(0).allele();
             
             Rocket rocket = cloneRocket(baseRocket);
             if (rocket == null) {
@@ -149,6 +169,7 @@ public class RocketOptimizer {
             
             setNoseConeLength(rocket, noseConeLength);
             setBodyTubeLength(rocket, bodyTubeLength);
+            setFinParameters(rocket, finRootChord, finTipChord, finHeight, finSweepLength);
             
             Simulation simulation = new Simulation(rocket);
             simulation.simulate();
@@ -288,6 +309,69 @@ public class RocketOptimizer {
             }
         } catch (Exception e) {
             // Ignore
+        }
+    }
+    
+    /**
+     * Set trapezoidal fin parameters on all fin sets (recursive search)
+     */
+    private static void setFinParameters(Rocket rocket, double rootChord, double tipChord, 
+                                        double height, double sweepLength) {
+        setFinParametersRecursive(rocket, rootChord, tipChord, height, sweepLength);
+    }
+    
+    /**
+     * Recursively search and update fin parameters
+     */
+    private static void setFinParametersRecursive(RocketComponent component, double rootChord,
+                                                  double tipChord, double height, double sweepLength) {
+        for (RocketComponent child : component.getChildren()) {
+            String className = child.getClass().getSimpleName();
+            
+            if (className.contains("Fin")) {
+                try {
+                    // Try to set root chord
+                    try {
+                        java.lang.reflect.Method setRootChord = child.getClass()
+                            .getMethod("setRootChord", double.class);
+                        setRootChord.invoke(child, rootChord);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                    
+                    // Try to set tip chord
+                    try {
+                        java.lang.reflect.Method setTipChord = child.getClass()
+                            .getMethod("setTipChord", double.class);
+                        setTipChord.invoke(child, tipChord);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                    
+                    // Try to set height
+                    try {
+                        java.lang.reflect.Method setHeight = child.getClass()
+                            .getMethod("setHeight", double.class);
+                        setHeight.invoke(child, height);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                    
+                    // Try to set sweep length
+                    try {
+                        java.lang.reflect.Method setSweep = child.getClass()
+                            .getMethod("setSweep", double.class);
+                        setSweep.invoke(child, sweepLength);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
+            
+            // Recursively search children
+            setFinParametersRecursive(child, rootChord, tipChord, height, sweepLength);
         }
     }
     

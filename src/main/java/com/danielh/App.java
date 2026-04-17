@@ -81,6 +81,10 @@ public class App {
             // Extract baseline parameters
             double baselineNoseCone = getComponentLength(baselineRocket, NoseCone.class);
             double baselineBodyTube = getComponentLength(baselineRocket, BodyTube.class);
+            double baselineFinRootChord = getFinRootChord(baselineRocket);
+            double baselineFinTipChord = getFinTipChord(baselineRocket);
+            double baselineFinHeight = getFinHeight(baselineRocket);
+            double baselineFinSweepLength = getFinSweepLength(baselineRocket);
             
             // Run baseline simulation
             SimulationResult baselineResult = runSimulationAndExtractData(baselineRocket);
@@ -96,6 +100,10 @@ public class App {
             // Store baseline results in report
             report.baselineNoseCone = baselineNoseCone;
             report.baselineBodyTube = baselineBodyTube;
+            report.baselineFinRootChord = baselineFinRootChord;
+            report.baselineFinTipChord = baselineFinTipChord;
+            report.baselineFinHeight = baselineFinHeight;
+            report.baselineFinSweepLength = baselineFinSweepLength;
             if (baselineResult != null) {
                 report.baselineApogee = baselineResult.apogee;
                 report.baselineTimeToApogee = baselineResult.timeToApogee;
@@ -111,6 +119,9 @@ public class App {
                 // Apply optimized parameters
                 setNoseConeLength(optimizedRocket, report.optimizedNoseCone);
                 setBodyTubeLength(optimizedRocket, report.optimizedBodyTube);
+                setFinParameters(optimizedRocket, report.optimizedFinRootChord, 
+                               report.optimizedFinTipChord, report.optimizedFinHeight, 
+                               report.optimizedFinSweepLength);
                 
                 // Run simulation
                 SimulationResult optimizedResult = runSimulationAndExtractData(optimizedRocket);
@@ -156,6 +167,130 @@ public class App {
             // Ignore
         }
         return 0.0;
+    }
+    
+    /**
+     * Get fin root chord from first fin set found
+     */
+    private static double getFinRootChord(Rocket rocket) {
+        return getFinParameter(rocket, "getRootChord");
+    }
+    
+    /**
+     * Get fin tip chord from first fin set found
+     */
+    private static double getFinTipChord(Rocket rocket) {
+        return getFinParameter(rocket, "getTipChord");
+    }
+    
+    /**
+     * Get fin height from first fin set found
+     */
+    private static double getFinHeight(Rocket rocket) {
+        return getFinParameter(rocket, "getHeight");
+    }
+    
+    /**
+     * Get fin sweep length from first fin set found
+     */
+    private static double getFinSweepLength(Rocket rocket) {
+        return getFinParameter(rocket, "getSweep");
+    }
+    
+    /**
+     * Helper method to extract fin parameter via reflection
+     */
+    private static double getFinParameter(Rocket rocket, String methodName) {
+        try {
+            for (RocketComponent child : rocket.getChildren()) {
+                if (child instanceof RocketComponent) {
+                    for (RocketComponent subchild : child.getChildren()) {
+                        String className = subchild.getClass().getSimpleName();
+                        if (className.contains("Fin")) {
+                            try {
+                                java.lang.reflect.Method method = subchild.getClass().getMethod(methodName);
+                                Object result = method.invoke(subchild);
+                                if (result instanceof Number) {
+                                    return ((Number) result).doubleValue();
+                                }
+                            } catch (Exception e) {
+                                // Method doesn't exist on this fin type
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return 0.0;
+    }
+    
+    /**
+     * Set fin parameters on all fin sets (recursive search)
+     */
+    private static void setFinParameters(Rocket rocket, double rootChord, double tipChord,
+                                        double height, double sweepLength) {
+        try {
+            setFinParametersRecursive(rocket, rootChord, tipChord, height, sweepLength);
+        } catch (Exception e) {
+            // Ignore
+        }
+    }
+    
+    /**
+     * Recursively search and update fin parameters
+     */
+    private static void setFinParametersRecursive(RocketComponent component, double rootChord, 
+                                                  double tipChord, double height, double sweepLength) {
+        for (RocketComponent child : component.getChildren()) {
+            String className = child.getClass().getSimpleName();
+            
+            if (className.contains("Fin")) {
+                try {
+                    // Try to set root chord
+                    try {
+                        java.lang.reflect.Method setRootChord = child.getClass()
+                            .getMethod("setRootChord", double.class);
+                        setRootChord.invoke(child, rootChord);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                    
+                    // Try to set tip chord
+                    try {
+                        java.lang.reflect.Method setTipChord = child.getClass()
+                            .getMethod("setTipChord", double.class);
+                        setTipChord.invoke(child, tipChord);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                    
+                    // Try to set height
+                    try {
+                        java.lang.reflect.Method setHeight = child.getClass()
+                            .getMethod("setHeight", double.class);
+                        setHeight.invoke(child, height);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                    
+                    // Try to set sweep length
+                    try {
+                        java.lang.reflect.Method setSweep = child.getClass()
+                            .getMethod("setSweep", double.class);
+                        setSweep.invoke(child, sweepLength);
+                    } catch (Exception e1) {
+                        // Ignore if method doesn't exist
+                    }
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
+            
+            // Recursively search children
+            setFinParametersRecursive(child, rootChord, tipChord, height, sweepLength);
+        }
     }
     
     private static OpenRocketDocument loadRocketDocument(File file) {

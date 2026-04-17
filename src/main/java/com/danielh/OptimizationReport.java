@@ -9,6 +9,10 @@ public class OptimizationReport {
     
     public double baselineNoseCone;
     public double baselineBodyTube;
+    public double baselineFinRootChord;
+    public double baselineFinTipChord;
+    public double baselineFinHeight;
+    public double baselineFinSweepLength;
     public double baselineApogee;
     public double baselineTimeToApogee;
     public double baselineMaxVelocity;
@@ -16,6 +20,10 @@ public class OptimizationReport {
     
     public double optimizedNoseCone;
     public double optimizedBodyTube;
+    public double optimizedFinRootChord;
+    public double optimizedFinTipChord;
+    public double optimizedFinHeight;
+    public double optimizedFinSweepLength;
     public double optimizedApogee;
     public double optimizedTimeToApogee;
     public double optimizedMaxVelocity;
@@ -40,12 +48,17 @@ public class OptimizationReport {
         System.out.println("  Population Size:        " + populationSize);
         System.out.println("  Generations:            " + generations);
         System.out.println("  Execution Time:         " + executionTimeMs + " ms");
-        System.out.println("  Parameters Optimized:   Nose Cone Length, Body Tube Length");
+        System.out.println("  Parameters Optimized:   Nose Cone Length, Body Tube Length,");
+        System.out.println("                          Fin Root Chord, Fin Tip Chord, Fin Height, Fin Sweep");
         System.out.println("  Objective:              Maximize Apogee");
         
         System.out.println("\n[BASELINE DESIGN (Original Parameters)]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", baselineNoseCone));
         System.out.println(String.format("  Body Tube Length:       %.4f m", baselineBodyTube));
+        System.out.println(String.format("  Fin Root Chord:         %.4f m", baselineFinRootChord));
+        System.out.println(String.format("  Fin Tip Chord:          %.4f m", baselineFinTipChord));
+        System.out.println(String.format("  Fin Height:             %.4f m", baselineFinHeight));
+        System.out.println(String.format("  Fin Sweep Length:       %.4f m", baselineFinSweepLength));
         System.out.println("\n  Flight Performance:");
         System.out.println(String.format("    • Apogee:              %.2f m", baselineApogee));
         System.out.println(String.format("    • Time to Apogee:      %.2f s", baselineTimeToApogee));
@@ -55,6 +68,10 @@ public class OptimizationReport {
         System.out.println("\n[OPTIMIZED DESIGN (GA Result)]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimizedNoseCone));
         System.out.println(String.format("  Body Tube Length:       %.4f m", optimizedBodyTube));
+        System.out.println(String.format("  Fin Root Chord:         %.4f m", optimizedFinRootChord));
+        System.out.println(String.format("  Fin Tip Chord:          %.4f m", optimizedFinTipChord));
+        System.out.println(String.format("  Fin Height:             %.4f m", optimizedFinHeight));
+        System.out.println(String.format("  Fin Sweep Length:       %.4f m", optimizedFinSweepLength));
         System.out.println("\n  Flight Performance:");
         System.out.println(String.format("    • Apogee:              %.2f m", optimizedApogee));
         System.out.println(String.format("    • Time to Apogee:      %.2f s", optimizedTimeToApogee));
@@ -76,11 +93,23 @@ public class OptimizationReport {
         // Design parameter changes
         double noseDiff = optimizedNoseCone - baselineNoseCone;
         double bodyDiff = optimizedBodyTube - baselineBodyTube;
+        double finRootDiff = optimizedFinRootChord - baselineFinRootChord;
+        double finTipDiff = optimizedFinTipChord - baselineFinTipChord;
+        double finHeightDiff = optimizedFinHeight - baselineFinHeight;
+        double finSweepDiff = optimizedFinSweepLength - baselineFinSweepLength;
         System.out.println("\n[DESIGN PARAMETER CHANGES]");
         System.out.println(String.format("  Nose Cone Length:       %+.4f m (%+.1f%%)", 
-            noseDiff, (noseDiff / baselineNoseCone) * 100.0));
+            noseDiff, baselineNoseCone != 0 ? (noseDiff / baselineNoseCone) * 100.0 : 0));
         System.out.println(String.format("  Body Tube Length:       %+.4f m (%+.1f%%)", 
-            bodyDiff, (bodyDiff / baselineBodyTube) * 100.0));
+            bodyDiff, baselineBodyTube != 0 ? (bodyDiff / baselineBodyTube) * 100.0 : 0));
+        System.out.println(String.format("  Fin Root Chord:         %+.4f m (%s)", 
+            finRootDiff, baselineFinRootChord != 0 ? String.format("%+.1f%%", (finRootDiff / baselineFinRootChord) * 100.0) : "N/A"));
+        System.out.println(String.format("  Fin Tip Chord:          %+.4f m (%s)", 
+            finTipDiff, baselineFinTipChord != 0 ? String.format("%+.1f%%", (finTipDiff / baselineFinTipChord) * 100.0) : "N/A"));
+        System.out.println(String.format("  Fin Height:             %+.4f m (%s)", 
+            finHeightDiff, baselineFinHeight != 0 ? String.format("%+.1f%%", (finHeightDiff / baselineFinHeight) * 100.0) : "N/A"));
+        System.out.println(String.format("  Fin Sweep Length:       %+.4f m (%s)", 
+            finSweepDiff, baselineFinSweepLength != 0 ? String.format("%+.1f%%", (finSweepDiff / baselineFinSweepLength) * 100.0) : "N/A"));
         
         System.out.println("\n" + "═".repeat(70));
         
