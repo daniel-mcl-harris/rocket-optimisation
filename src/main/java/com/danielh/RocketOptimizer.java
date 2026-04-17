@@ -15,10 +15,13 @@ import java.util.List;
 
 public class RocketOptimizer {
     
+    // Save original streams at class load time
+    private static final java.io.PrintStream ORIGINAL_OUT = System.out;
+    private static final java.io.PrintStream ORIGINAL_ERR = System.err;
+    
     // Gene bounds (in meters)
     private static final DoubleRange NOSE_CONE_RANGE = DoubleRange.of(0.1, 1.0);
     private static final DoubleRange BODY_TUBE_RANGE = DoubleRange.of(0.4, 1.0);
-    private static final DoubleRange BODY_TUBE_DIAMETER_RANGE = DoubleRange.of(0.03, 0.08);  // 3cm to 8cm
     
     // Shared base rocket for cloning
     private static Rocket baseRocket;
@@ -38,7 +41,7 @@ public class RocketOptimizer {
         long startTime = System.currentTimeMillis();
         rocketFilePath = rocketPath;
         
-        // Load base rocket once
+        // Load base rocket once (output will be suppressed during fitness evaluations)
         try {
             OpenRocketDocument document = loadRocketDocument(new File(rocketPath));
             if (document == null) {
@@ -51,55 +54,72 @@ public class RocketOptimizer {
             return null;
         }
         
-        // Define genotype: 3 continuous genes (nose cone length, body tube length, body tube diameter)
+        // Define genotype: 2 continuous genes (nose cone length, body tube length)
         final Genotype<DoubleGene> genotype = Genotype.of(
             DoubleChromosome.of(NOSE_CONE_RANGE),
-            DoubleChromosome.of(BODY_TUBE_RANGE),
-            DoubleChromosome.of(BODY_TUBE_DIAMETER_RANGE)
+            DoubleChromosome.of(BODY_TUBE_RANGE)
         );
         
         // Build the GA engine with elitism and increased population for diversity
+        // Build the GA engine with elitism and strong mutation for 2-dimensional search
         Engine<DoubleGene, Double> engine = Engine
             .builder(
                 f -> fitnessFunction(f),
                 genotype
             )
             .populationSize(populationSize)
-            .selector(new TournamentSelector<>(5))  
+            .selector(new TournamentSelector<>(3))  
             .alterers(
-                new Mutator<>(0.25)  
+                new SinglePointCrossover<>(0.5),    // 50% crossover chance
+                new Mutator<>(0.8)                   // 80% mutation (high for 2D space)
             )
-            .survivorsSelector(new EliteSelector<>(20))
-            .offspringSelector(new TournamentSelector<>(5))
+            .survivorsSelector(new EliteSelector<>(Math.max(populationSize / 10, 5)))  // Elite 10% or 5, whichever is larger
+            .offspringSelector(new TournamentSelector<>(3))
             .minimizing()  
             .build();
         
         // Run the GA
         System.out.println("\n=== ROCKET DESIGN OPTIMIZATION (Jenetics) ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
-        System.out.println("Optimizing: Nose Cone Length [0.1-1.0 m], Body Tube Length [0.4-1.0 m], Body Tube Diameter [0.03-0.08 m]");
+        System.out.println("Optimizing: Nose Cone Length [0.1-1.0 m], Body Tube Length [0.4-1.0 m]");
         System.out.println("Objective: Maximize Apogee");
         System.out.println("─────────────────────────────────────────");
         
         // Progress tracking with ProgressBar library
-        final Phenotype<DoubleGene, Double>[] bestIndividual = new Phenotype[1];
+        // Track the BEST individual across ALL generations, not just the last one
+        final Phenotype<DoubleGene, Double>[] globalBest = new Phenotype[1];
+        final double[] generationCounter = {0};
         
         try (ProgressBar pb = new ProgressBar("Optimization", generations)) {
             engine.stream()
                 .limit(generations)
                 .forEach(result -> {
-                    bestIndividual[0] = result.population().stream()
+                    generationCounter[0]++;
+                    // Find the best in the current population
+                    Phenotype<DoubleGene, Double> generationBest = result.population().stream()
                         .min((p1, p2) -> Double.compare(p1.fitness(), p2.fitness()))
                         .orElse(null);
+                    
+                    // Update global best if this generation is better
+                    if (generationBest != null) {
+                        if (globalBest[0] == null || generationBest.fitness() < globalBest[0].fitness()) {
+                            globalBest[0] = generationBest;
+                            System.out.format("new global best found" + globalBest[0]);
+                        }
+                    }
                     
                     pb.step();
                 });
         }
         
-        Phenotype<DoubleGene, Double> best = bestIndividual[0];
+        Phenotype<DoubleGene, Double> best = globalBest[0];
         if (best == null) {
             throw new RuntimeException("Optimization failed: No solutions found");
         }
+        
+        // Ensure System.out is restored before returning report
+        System.setOut(ORIGINAL_OUT);
+        System.setErr(ORIGINAL_ERR);
         
         System.out.println("─────────────────────────────────────────");
         
@@ -107,7 +127,6 @@ public class RocketOptimizer {
         OptimizationReport report = new OptimizationReport(populationSize, generations);
         report.optimizedNoseCone = best.genotype().get(0).get(0).allele();
         report.optimizedBodyTube = best.genotype().get(1).get(0).allele();
-        report.optimizedBodyTubeDiameter = best.genotype().get(2).get(0).allele();
         report.bestPhenotype = best;
         report.executionTimeMs = System.currentTimeMillis() - startTime;
         
@@ -115,64 +134,93 @@ public class RocketOptimizer {
     }
     
     private static Double fitnessFunction(Genotype<DoubleGene> genotype) {
+        java.io.PrintStream originalOut = System.out;
+        java.io.PrintStream originalErr = System.err;
+        System.setOut(new FilteringPrintStream(originalOut));
+        System.setErr(new FilteringPrintStream(originalErr));
         try {
-            // Get gene values from the three chromosomes
-            double noseConeLength = genotype.get(0).get(0).allele();  // Chromosome 0, Gene 0
-            double bodyTubeLength = genotype.get(1).get(0).allele();  // Chromosome 1, Gene 0
-            double bodyTubeDiameter = genotype.get(2).get(0).allele();  // Chromosome 2, Gene 0
+            double noseConeLength = genotype.get(0).get(0).allele();
+            double bodyTubeLength = genotype.get(1).get(0).allele();
             
-            // Clone and modify rocket
             Rocket rocket = cloneRocket(baseRocket);
             if (rocket == null) {
-                return 0.0;  // Penalize if cloning fails
+                return 1000.0;
             }
             
             setNoseConeLength(rocket, noseConeLength);
             setBodyTubeLength(rocket, bodyTubeLength);
-            setBodyTubeDiameter(rocket, bodyTubeDiameter);
             
-            // Run simulation (adapted from App.java)
             Simulation simulation = new Simulation(rocket);
             simulation.simulate();
             
-            // Extract apogee
             java.lang.reflect.Method getSimulatedData = simulation.getClass().getMethod("getSimulatedData");
             Object simulatedData = getSimulatedData.invoke(simulation);
             
             if (simulatedData == null) {
-                return 0.0;
+                return 1000.0;
             }
             
             double apogee = getDoubleFromMethod(simulatedData, "getMaxAltitude");
-            
-            // Return negated apogee (minimize = maximize apogee)
             return -apogee;
             
         } catch (Exception e) {
-            // Return worst fitness if simulation fails
-            return 0.0;
+            return 1000.0;
+        } finally {
+            System.setOut(ORIGINAL_OUT);
+            System.setErr(ORIGINAL_ERR);
         }
     }
     
     /**
-     * Clone a rocket for independent simulation
+     * Clone a rocket by reloading from file with FilteringPrintStream to suppress "Loading" messages
      */
     private static Rocket cloneRocket(Rocket original) {
+        java.io.PrintStream originalOut = System.out;
+        java.io.PrintStream originalErr = System.err;
+        System.setOut(new FilteringPrintStream(originalOut));
+        System.setErr(new FilteringPrintStream(originalErr));
         try {
-            // Attempt Java clone if available
-            Rocket clone = (Rocket) original.clone();
-            return clone;
-        } catch (Exception e) {
-            // Fallback: reload from file for each iteration
             try {
-                OpenRocketDocument document = loadRocketDocument(new File(rocketFilePath));
+                OpenRocketDocument document = new GeneralRocketLoader(new File(rocketFilePath)).load();
                 if (document != null) {
                     return document.getRocket();
                 }
-            } catch (Exception reloadE) {
-                // Both methods failed
+            } catch (Exception e) {
+                // Silently fail
             }
             return null;
+        } finally {
+            System.setOut(ORIGINAL_OUT);
+            System.setErr(ORIGINAL_ERR);
+        }
+    }
+    
+    /**
+     * Load rocket document from byte array without file I/O spam
+     */
+    private static OpenRocketDocument loadRocketDocumentFromBytes(byte[] data) {
+        // No longer used
+        return null;
+    }
+
+    /**
+     * Load rocket document while filtering out OpenRocket's "Loading" messages
+     */
+    private static OpenRocketDocument loadRocketDocument(File file) {
+        java.io.PrintStream originalOut = System.out;
+        java.io.PrintStream originalErr = System.err;
+        System.setOut(new FilteringPrintStream(originalOut));
+        System.setErr(new FilteringPrintStream(originalErr));
+        try {
+            GeneralRocketLoader loader = new GeneralRocketLoader(file);
+            OpenRocketDocument document = loader.load();
+            return document;
+        } catch (Exception e) {
+            System.err.println("Failed to load: " + e.getMessage());
+            return null;
+        } finally {
+            System.setOut(ORIGINAL_OUT);
+            System.setErr(ORIGINAL_ERR);
         }
     }
     
@@ -259,16 +307,5 @@ public class RocketOptimizer {
         return 0.0;
     }
     
-    /**
-     * Load rocket document from file
-     */
-    private static OpenRocketDocument loadRocketDocument(File file) {
-        try {
-            GeneralRocketLoader loader = new GeneralRocketLoader(file);
-            return loader.load();
-        } catch (Exception e) {
-            System.err.println("Failed to load: " + e.getMessage());
-            return null;
-        }
-    }
 }
+

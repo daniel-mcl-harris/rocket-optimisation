@@ -9,7 +9,6 @@ public class OptimizationReport {
     
     public double baselineNoseCone;
     public double baselineBodyTube;
-    public double baselineBodyTubeDiameter;
     public double baselineApogee;
     public double baselineTimeToApogee;
     public double baselineMaxVelocity;
@@ -17,7 +16,6 @@ public class OptimizationReport {
     
     public double optimizedNoseCone;
     public double optimizedBodyTube;
-    public double optimizedBodyTubeDiameter;
     public double optimizedApogee;
     public double optimizedTimeToApogee;
     public double optimizedMaxVelocity;
@@ -42,13 +40,12 @@ public class OptimizationReport {
         System.out.println("  Population Size:        " + populationSize);
         System.out.println("  Generations:            " + generations);
         System.out.println("  Execution Time:         " + executionTimeMs + " ms");
-        System.out.println("  Parameters Optimized:   Nose Cone Length, Body Tube Length, Body Tube Diameter");
+        System.out.println("  Parameters Optimized:   Nose Cone Length, Body Tube Length");
         System.out.println("  Objective:              Maximize Apogee");
         
         System.out.println("\n[BASELINE DESIGN (Original Parameters)]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", baselineNoseCone));
         System.out.println(String.format("  Body Tube Length:       %.4f m", baselineBodyTube));
-        System.out.println(String.format("  Body Tube Diameter:     %.4f m", baselineBodyTubeDiameter));
         System.out.println("\n  Flight Performance:");
         System.out.println(String.format("    • Apogee:              %.2f m", baselineApogee));
         System.out.println(String.format("    • Time to Apogee:      %.2f s", baselineTimeToApogee));
@@ -58,7 +55,6 @@ public class OptimizationReport {
         System.out.println("\n[OPTIMIZED DESIGN (GA Result)]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimizedNoseCone));
         System.out.println(String.format("  Body Tube Length:       %.4f m", optimizedBodyTube));
-        System.out.println(String.format("  Body Tube Diameter:     %.4f m", optimizedBodyTubeDiameter));
         System.out.println("\n  Flight Performance:");
         System.out.println(String.format("    • Apogee:              %.2f m", optimizedApogee));
         System.out.println(String.format("    • Time to Apogee:      %.2f s", optimizedTimeToApogee));
@@ -80,27 +76,23 @@ public class OptimizationReport {
         // Design parameter changes
         double noseDiff = optimizedNoseCone - baselineNoseCone;
         double bodyDiff = optimizedBodyTube - baselineBodyTube;
-        double diameterDiff = optimizedBodyTubeDiameter - baselineBodyTubeDiameter;
         System.out.println("\n[DESIGN PARAMETER CHANGES]");
         System.out.println(String.format("  Nose Cone Length:       %+.4f m (%+.1f%%)", 
             noseDiff, (noseDiff / baselineNoseCone) * 100.0));
         System.out.println(String.format("  Body Tube Length:       %+.4f m (%+.1f%%)", 
             bodyDiff, (bodyDiff / baselineBodyTube) * 100.0));
-        System.out.println(String.format("  Body Tube Diameter:     %+.4f m (%+.1f%%)", 
-            diameterDiff, (diameterDiff / baselineBodyTubeDiameter) * 100.0));
         
         System.out.println("\n" + "═".repeat(70));
         
         // Verdict
         if (apogeeImprovement > 0) {
-            System.out.println("✓ OPTIMIZATION SUCCESSFUL: Improved apogee by " + 
+            System.out.println("OPTIMIZATION SUCCESSFUL: Improved apogee by " + 
                 String.format("%.1f%%", apogeeImprovementPercent));
         } else if (apogeeImprovement < 0) {
-            System.out.println("✓ OPTIMIZATION COMPLETE: Apogee decreased by " + 
-                String.format("%.1f%%", Math.abs(apogeeImprovementPercent)) + 
-                " (exploring trade-offs)");
+            System.out.println("OPTIMIZATION FAILED: Apogee decreased by " + 
+                String.format("%.1f%%", Math.abs(apogeeImprovementPercent)));
         } else {
-            System.out.println("✓ OPTIMIZATION COMPLETE: No improvement found");
+            System.out.println("OPTIMIZATION FAILED: No improvement found");
         }
         System.out.println("═".repeat(70) + "\n");
     }

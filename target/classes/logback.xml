@@ -7,12 +7,14 @@
         </encoder>
     </appender>
 
-    <!-- Suppress DEBUG logs from OpenRocket database loading -->
+    <!-- Suppress logging from OpenRocket packages -->
     <logger name="info.openrocket.core.database" level="WARN"/>
     <logger name="info.openrocket.core.startup.providers" level="WARN"/>
     <logger name="info.openrocket.core.util" level="WARN"/>
     <logger name="info.openrocket.core.simulation" level="WARN"/>
     <logger name="info.openrocket.core.preset" level="WARN"/>
+    <logger name="info.openrocket.core.file" level="WARN"/>
+    <logger name="info.openrocket" level="WARN"/>
 
     <!-- Root logger -->
     <root level="INFO">

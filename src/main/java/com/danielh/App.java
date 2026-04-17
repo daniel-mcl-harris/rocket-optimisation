@@ -81,7 +81,6 @@ public class App {
             // Extract baseline parameters
             double baselineNoseCone = getComponentLength(baselineRocket, NoseCone.class);
             double baselineBodyTube = getComponentLength(baselineRocket, BodyTube.class);
-            double baselineBodyTubeDiameter = getBodyTubeDiameter(baselineRocket);
             
             // Run baseline simulation
             SimulationResult baselineResult = runSimulationAndExtractData(baselineRocket);
@@ -97,7 +96,6 @@ public class App {
             // Store baseline results in report
             report.baselineNoseCone = baselineNoseCone;
             report.baselineBodyTube = baselineBodyTube;
-            report.baselineBodyTubeDiameter = baselineBodyTubeDiameter;
             if (baselineResult != null) {
                 report.baselineApogee = baselineResult.apogee;
                 report.baselineTimeToApogee = baselineResult.timeToApogee;
@@ -113,7 +111,6 @@ public class App {
                 // Apply optimized parameters
                 setNoseConeLength(optimizedRocket, report.optimizedNoseCone);
                 setBodyTubeLength(optimizedRocket, report.optimizedBodyTube);
-                setBodyTubeDiameter(optimizedRocket, report.optimizedBodyTubeDiameter);
                 
                 // Run simulation
                 SimulationResult optimizedResult = runSimulationAndExtractData(optimizedRocket);
@@ -126,7 +123,10 @@ public class App {
             }
             
             // Generate and display detailed report
+            System.out.flush();
+            System.err.flush();
             report.generateReport();
+            System.out.flush();
             
         } catch (Exception e) {
             System.err.println("Optimization failed: " + e.getMessage());
@@ -159,6 +159,10 @@ public class App {
     }
     
     private static OpenRocketDocument loadRocketDocument(File file) {
+        java.io.PrintStream originalOut = System.out;
+        java.io.PrintStream originalErr = System.err;
+        System.setOut(new FilteringPrintStream(originalOut));
+        System.setErr(new FilteringPrintStream(originalErr));
         try {
             GeneralRocketLoader loader = new GeneralRocketLoader(file);
             OpenRocketDocument document = loader.load();
@@ -166,6 +170,9 @@ public class App {
         } catch (Exception e) {
             System.err.println("Failed to load: " + e.getMessage());
             return null;
+        } finally {
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
     }
     
