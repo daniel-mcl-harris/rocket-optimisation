@@ -5,6 +5,9 @@ target/
 *.ear
 *.class
 
+# Generated rockets
+rockets/*.ork
+
 # Maven
 .m2/
 dependency-reduced-pom.xml
