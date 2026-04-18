@@ -26,5 +26,6 @@ dependency-reduced-pom.xml
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs and debug output
 *.log
+*.txt
