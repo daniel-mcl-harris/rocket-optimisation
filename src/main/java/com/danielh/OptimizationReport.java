@@ -47,12 +47,13 @@ public class OptimizationReport {
         System.out.println("\n[OPTIMIZATION CONFIGURATION]");
         System.out.println("  Population Size:        " + populationSize);
         System.out.println("  Generations:            " + generations);
-        System.out.println("  Execution Time:         " + executionTimeMs + " ms");
-        System.out.println("  Parameters Optimized:   Nose Cone Length, Body Tube Length,");
-        System.out.println("                          Fin Root Chord, Fin Tip Chord, Fin Height, Fin Sweep");
-        System.out.println("  Objective:              Maximize Apogee");
+        long totalSeconds = executionTimeMs / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+        System.out.println(String.format("  Execution Time:         %02d:%02d:%02d", hours, minutes, seconds));
         
-        System.out.println("\n[BASELINE DESIGN (Original Parameters)]");
+        System.out.println("\n[BASE DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", baselineNoseCone));
         System.out.println(String.format("  Body Tube Length:       %.4f m", baselineBodyTube));
         System.out.println(String.format("  Fin Root Chord:         %.4f m", baselineFinRootChord));
@@ -60,12 +61,12 @@ public class OptimizationReport {
         System.out.println(String.format("  Fin Height:             %.4f m", baselineFinHeight));
         System.out.println(String.format("  Fin Sweep Length:       %.4f m", baselineFinSweepLength));
         System.out.println("\n  Flight Performance:");
-        System.out.println(String.format("    • Apogee:              %.2f m", baselineApogee));
-        System.out.println(String.format("    • Time to Apogee:      %.2f s", baselineTimeToApogee));
-        System.out.println(String.format("    • Max Velocity:        %.2f m/s", baselineMaxVelocity));
-        System.out.println(String.format("    • Max Acceleration:    %.2f m/s²", baselineMaxAcceleration));
+        System.out.println(String.format("  Apogee:                 %.2f m", baselineApogee));
+        System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
+        System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
+        System.out.println(String.format("  Max Acceleration:       %.2f m/s²", baselineMaxAcceleration));
         
-        System.out.println("\n[OPTIMIZED DESIGN (GA Result)]");
+        System.out.println("\n[OPTIMIZED DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimizedNoseCone));
         System.out.println(String.format("  Body Tube Length:       %.4f m", optimizedBodyTube));
         System.out.println(String.format("  Fin Root Chord:         %.4f m", optimizedFinRootChord));
@@ -73,10 +74,10 @@ public class OptimizationReport {
         System.out.println(String.format("  Fin Height:             %.4f m", optimizedFinHeight));
         System.out.println(String.format("  Fin Sweep Length:       %.4f m", optimizedFinSweepLength));
         System.out.println("\n  Flight Performance:");
-        System.out.println(String.format("    • Apogee:              %.2f m", optimizedApogee));
-        System.out.println(String.format("    • Time to Apogee:      %.2f s", optimizedTimeToApogee));
-        System.out.println(String.format("    • Max Velocity:        %.2f m/s", optimizedMaxVelocity));
-        System.out.println(String.format("    • Max Acceleration:    %.2f m/s²", optimizedMaxAcceleration));
+        System.out.println(String.format("  Apogee:                 %.2f m", optimizedApogee));
+        System.out.println(String.format("  Time to Apogee:         %.2f s", optimizedTimeToApogee));
+        System.out.println(String.format("  Max Velocity:           %.2f m/s", optimizedMaxVelocity));
+        System.out.println(String.format("  Max Acceleration:       %.2f m/s²", optimizedMaxAcceleration));
         
         // Calculate improvements
         double apogeeImprovement = optimizedApogee - baselineApogee;
@@ -90,38 +91,13 @@ public class OptimizationReport {
         System.out.println(String.format("  Max Velocity:           %+.2f m/s (%+.1f%%)", 
             velocityImprovement, velocityImprovementPercent));
         
-        // Design parameter changes
-        double noseDiff = optimizedNoseCone - baselineNoseCone;
-        double bodyDiff = optimizedBodyTube - baselineBodyTube;
-        double finRootDiff = optimizedFinRootChord - baselineFinRootChord;
-        double finTipDiff = optimizedFinTipChord - baselineFinTipChord;
-        double finHeightDiff = optimizedFinHeight - baselineFinHeight;
-        double finSweepDiff = optimizedFinSweepLength - baselineFinSweepLength;
-        System.out.println("\n[DESIGN PARAMETER CHANGES]");
-        System.out.println(String.format("  Nose Cone Length:       %+.4f m (%+.1f%%)", 
-            noseDiff, baselineNoseCone != 0 ? (noseDiff / baselineNoseCone) * 100.0 : 0));
-        System.out.println(String.format("  Body Tube Length:       %+.4f m (%+.1f%%)", 
-            bodyDiff, baselineBodyTube != 0 ? (bodyDiff / baselineBodyTube) * 100.0 : 0));
-        System.out.println(String.format("  Fin Root Chord:         %+.4f m (%s)", 
-            finRootDiff, baselineFinRootChord != 0 ? String.format("%+.1f%%", (finRootDiff / baselineFinRootChord) * 100.0) : "N/A"));
-        System.out.println(String.format("  Fin Tip Chord:          %+.4f m (%s)", 
-            finTipDiff, baselineFinTipChord != 0 ? String.format("%+.1f%%", (finTipDiff / baselineFinTipChord) * 100.0) : "N/A"));
-        System.out.println(String.format("  Fin Height:             %+.4f m (%s)", 
-            finHeightDiff, baselineFinHeight != 0 ? String.format("%+.1f%%", (finHeightDiff / baselineFinHeight) * 100.0) : "N/A"));
-        System.out.println(String.format("  Fin Sweep Length:       %+.4f m (%s)", 
-            finSweepDiff, baselineFinSweepLength != 0 ? String.format("%+.1f%%", (finSweepDiff / baselineFinSweepLength) * 100.0) : "N/A"));
-        
         System.out.println("\n" + "═".repeat(70));
         
         // Verdict
         if (apogeeImprovement > 0) {
-            System.out.println("OPTIMIZATION SUCCESSFUL: Improved apogee by " + 
-                String.format("%.1f%%", apogeeImprovementPercent));
-        } else if (apogeeImprovement < 0) {
-            System.out.println("OPTIMIZATION FAILED: Apogee decreased by " + 
-                String.format("%.1f%%", Math.abs(apogeeImprovementPercent)));
+            System.out.print("                      OPTIMIZATION SUCCESSFUL\n");
         } else {
-            System.out.println("OPTIMIZATION FAILED: No improvement found");
+            System.out.println("                        OPTIMIZATION FAILED\n");
         }
         System.out.println("═".repeat(70) + "\n");
     }

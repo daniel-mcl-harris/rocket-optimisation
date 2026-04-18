@@ -138,7 +138,6 @@ public class App {
                 if (componentType.isInstance(subchild)) {
                     try {
                         subchild.getClass().getMethod("setLength", double.class).invoke(subchild, length);
-                        System.out.println("  - Set " + subchild.getClass().getSimpleName().toLowerCase() + " length to: " + length + " m");
                     } catch (Exception e) {
                     }
                 }
