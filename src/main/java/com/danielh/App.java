@@ -93,8 +93,10 @@ public class App {
             }
             
             report.generateReport();
+            System.exit(0);
         } catch (Exception e) {
             System.err.println("Optimization failed: " + e.getMessage());
+            System.exit(1);
         }
     }
     
