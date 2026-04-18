@@ -6,7 +6,7 @@ target/
 *.class
 
 # Generated rockets
-rockets/*.ork
+rockets/GA_rocket_v*.ork
 
 # Maven
 .m2/

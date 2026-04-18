@@ -14,7 +14,7 @@ public class App {
     
     public static void main(String[] args) {
         OpenRocketCore.initialize();
-        String rocketPath = "libs\\test_rocket.ork";
+        String rocketPath = "rockets\\GA_base_rocket.ork";
         
         if (args.length > 0 && args[0].equalsIgnoreCase("optimize")) {
             int population = 50;
