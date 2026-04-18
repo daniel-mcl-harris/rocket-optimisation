@@ -25,7 +25,7 @@ public class RocketOptimizer {
     private static Rocket baseRocket;
     private static String rocketFilePath;
     
-    public static OptimizationReport optimize(int populationSize, int generations, String rocketPath,
+    public static OptimisationReport optimise(int populationSize, int generations, String rocketPath,
                                                double baselineNose, double baselineBody,
                                                double baselineRootChord, double baselineTipChord,
                                                double baselineHeight, double baselineSweepLength) {
@@ -66,9 +66,9 @@ public class RocketOptimizer {
             .minimizing()
             .build();
         
-        System.out.println("\n=== ROCKET DESIGN OPTIMIZATION ===");
+        System.out.println("\n=== ROCKET DESIGN OPTIMISATION ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
-        System.out.println("Optimizing: Nose Cone, Body Tube, Fin Parameters");
+        System.out.println("Optimising: Nose Cone, Body Tube, Fin Parameters");
         System.out.println("─────────────────────────────────────────");
         
         final Genotype<DoubleGene> baselineGenotype = Genotype.of(
@@ -84,7 +84,7 @@ public class RocketOptimizer {
         final Phenotype<DoubleGene, Double>[] globalBest = new Phenotype[1];
         globalBest[0] = Phenotype.of(baselineGenotype, 1, baselineFitness);
         
-        try (ProgressBar pb = new ProgressBar("Optimization", generations)) {
+        try (ProgressBar pb = new ProgressBar("Optimisation", generations)) {
             engine.stream()
                 .limit(generations)
                 .forEach(result -> {
@@ -103,22 +103,22 @@ public class RocketOptimizer {
         System.setErr(ORIGINAL_ERR);
         System.out.println("─────────────────────────────────────────");
         
-        OptimizationReport report = new OptimizationReport(populationSize, generations);
+        OptimisationReport report = new OptimisationReport(populationSize, generations);
         
         if (globalBest[0].fitness() > baselineFitness) {
-            report.optimizedNoseCone = baselineNose;
-            report.optimizedBodyTube = baselineBody;
-            report.optimizedFinRootChord = baselineRootChord;
-            report.optimizedFinTipChord = baselineTipChord;
-            report.optimizedFinHeight = baselineHeight;
-            report.optimizedFinSweepLength = baselineSweepLength;
+            report.optimisedNoseCone = baselineNose;
+            report.optimisedBodyTube = baselineBody;
+            report.optimisedFinRootChord = baselineRootChord;
+            report.optimisedFinTipChord = baselineTipChord;
+            report.optimisedFinHeight = baselineHeight;
+            report.optimisedFinSweepLength = baselineSweepLength;
         } else {
-            report.optimizedNoseCone = globalBest[0].genotype().get(0).get(0).allele();
-            report.optimizedBodyTube = globalBest[0].genotype().get(1).get(0).allele();
-            report.optimizedFinRootChord = globalBest[0].genotype().get(2).get(0).allele();
-            report.optimizedFinTipChord = globalBest[0].genotype().get(3).get(0).allele();
-            report.optimizedFinHeight = globalBest[0].genotype().get(4).get(0).allele();
-            report.optimizedFinSweepLength = globalBest[0].genotype().get(5).get(0).allele();
+            report.optimisedNoseCone = globalBest[0].genotype().get(0).get(0).allele();
+            report.optimisedBodyTube = globalBest[0].genotype().get(1).get(0).allele();
+            report.optimisedFinRootChord = globalBest[0].genotype().get(2).get(0).allele();
+            report.optimisedFinTipChord = globalBest[0].genotype().get(3).get(0).allele();
+            report.optimisedFinHeight = globalBest[0].genotype().get(4).get(0).allele();
+            report.optimisedFinSweepLength = globalBest[0].genotype().get(5).get(0).allele();
         }
         
         report.bestPhenotype = globalBest[0];

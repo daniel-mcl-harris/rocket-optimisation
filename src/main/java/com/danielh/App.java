@@ -16,7 +16,7 @@ public class App {
         OpenRocketCore.initialize();
         String rocketPath = "rockets\\GA_base_rocket.ork";
         
-        if (args.length > 0 && args[0].equalsIgnoreCase("optimize")) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("optimise")) {
             int population = 50;
             int generations = 100;
             
@@ -25,15 +25,15 @@ public class App {
                     population = Integer.parseInt(args[1]);
                     generations = Integer.parseInt(args[2]);
                 } catch (NumberFormatException e) {
-                    System.err.println("Invalid parameters. Usage: App optimize [population] [generations]");
+                    System.err.println("Invalid parameters. Usage: App optimise [population] [generations]");
                 }
             }
             
-            runOptimization(population, generations, rocketPath);
+            runOptimisation(population, generations, rocketPath);
         }
     }
     
-    private static void runOptimization(int population, int generations, String rocketPath) {
+    private static void runOptimisation(int population, int generations, String rocketPath) {
         try {
             OpenRocketDocument baselineDoc = loadRocket(new File(rocketPath));
             if (baselineDoc == null) {
@@ -51,12 +51,12 @@ public class App {
             
             SimulationResult baselineResult = runSimulation(baselineRocket);
             
-            OptimizationReport report = RocketOptimizer.optimize(population, generations, rocketPath,
+            OptimisationReport report = RocketOptimizer.optimise(population, generations, rocketPath,
                 baselineNose, baselineBody, baselineRootChord, baselineTipChord, 
                 baselineHeight, baselineSweep);
             
             if (report == null) {
-                System.err.println("Optimization failed");
+                System.err.println("Optimisation failed");
                 return;
             }
             
@@ -73,29 +73,29 @@ public class App {
                 report.baselineMaxAcceleration = baselineResult.maxAcceleration;
             }
             
-            OpenRocketDocument optimizedDoc = loadRocket(new File(rocketPath));
-            if (optimizedDoc != null) {
-                Rocket optimizedRocket = optimizedDoc.getRocket();
-                setComponentLength(optimizedRocket, NoseCone.class, report.optimizedNoseCone);
-                setComponentLength(optimizedRocket, BodyTube.class, report.optimizedBodyTube);
-                setFinParameters(optimizedRocket, report.optimizedFinRootChord, 
-                    report.optimizedFinTipChord, report.optimizedFinHeight, report.optimizedFinSweepLength);
+            OpenRocketDocument optimisedDoc = loadRocket(new File(rocketPath));
+            if (optimisedDoc != null) {
+                Rocket optimisedRocket = optimisedDoc.getRocket();
+                setComponentLength(optimisedRocket, NoseCone.class, report.optimisedNoseCone);
+                setComponentLength(optimisedRocket, BodyTube.class, report.optimisedBodyTube);
+                setFinParameters(optimisedRocket, report.optimisedFinRootChord, 
+                    report.optimisedFinTipChord, report.optimisedFinHeight, report.optimisedFinSweepLength);
                 
-                SimulationResult optimizedResult = runSimulation(optimizedRocket);
-                if (optimizedResult != null) {
-                    report.optimizedApogee = optimizedResult.apogee;
-                    report.optimizedTimeToApogee = optimizedResult.timeToApogee;
-                    report.optimizedMaxVelocity = optimizedResult.maxVelocity;
-                    report.optimizedMaxAcceleration = optimizedResult.maxAcceleration;
+                SimulationResult optimisedResult = runSimulation(optimisedRocket);
+                if (optimisedResult != null) {
+                    report.optimisedApogee = optimisedResult.apogee;
+                    report.optimisedTimeToApogee = optimisedResult.timeToApogee;
+                    report.optimisedMaxVelocity = optimisedResult.maxVelocity;
+                    report.optimisedMaxAcceleration = optimisedResult.maxAcceleration;
                 }
                 
-                saveOptimizedRocket(optimizedDoc);
+                saveOptimisedRocket(optimisedDoc);
             }
             
             report.generateReport();
             System.exit(0);
         } catch (Exception e) {
-            System.err.println("Optimization failed: " + e.getMessage());
+            System.err.println("Optimisation failed: " + e.getMessage());
             System.exit(1);
         }
     }
@@ -246,7 +246,7 @@ public class App {
         return maxVersion + 1;
     }
     
-    private static void saveOptimizedRocket(OpenRocketDocument doc) {
+    private static void saveOptimisedRocket(OpenRocketDocument doc) {
         try {
             File rocketsDir = new File("rockets");
             if (!rocketsDir.exists()) {
@@ -259,9 +259,9 @@ public class App {
             GeneralRocketSaver saver = new GeneralRocketSaver();
             saver.save(outputFile, doc);
             
-            System.out.println("\nOptimized rocket saved to: " + outputFile.getAbsolutePath());
+            System.out.println("\nOptimised rocket saved to: " + outputFile.getAbsolutePath());
         } catch (Exception e) {
-            System.err.println("Failed to save optimized rocket: " + e.getMessage());
+            System.err.println("Failed to save optimised rocket: " + e.getMessage());
         }
     }
     

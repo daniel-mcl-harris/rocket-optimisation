@@ -3,7 +3,7 @@ package com.danielh;
 import io.jenetics.DoubleGene;
 import io.jenetics.Phenotype;
 
-public class OptimizationReport {
+public class OptimisationReport {
     public int populationSize;
     public int generations;
     
@@ -18,33 +18,33 @@ public class OptimizationReport {
     public double baselineMaxVelocity;
     public double baselineMaxAcceleration;
     
-    public double optimizedNoseCone;
-    public double optimizedBodyTube;
-    public double optimizedFinRootChord;
-    public double optimizedFinTipChord;
-    public double optimizedFinHeight;
-    public double optimizedFinSweepLength;
-    public double optimizedApogee;
-    public double optimizedTimeToApogee;
-    public double optimizedMaxVelocity;
-    public double optimizedMaxAcceleration;
+    public double optimisedNoseCone;
+    public double optimisedBodyTube;
+    public double optimisedFinRootChord;
+    public double optimisedFinTipChord;
+    public double optimisedFinHeight;
+    public double optimisedFinSweepLength;
+    public double optimisedApogee;
+    public double optimisedTimeToApogee;
+    public double optimisedMaxVelocity;
+    public double optimisedMaxAcceleration;
     
     public long executionTimeMs;
     
     // Store the best phenotype for potential use
     public Phenotype<DoubleGene, Double> bestPhenotype;
     
-    public OptimizationReport(int popSize, int gens) {
+    public OptimisationReport(int popSize, int gens) {
         this.populationSize = popSize;
         this.generations = gens;
     }
     
     public void generateReport() {
         System.out.println("\n" + "═".repeat(70));
-        System.out.println("                    ROCKET OPTIMIZATION REPORT");
+        System.out.println("                    ROCKET OPTIMISATION REPORT");
         System.out.println("═".repeat(70));
         
-        System.out.println("\n[OPTIMIZATION CONFIGURATION]");
+        System.out.println("\n[OPTIMISATION CONFIGURATION]");
         System.out.println("  Population Size:        " + populationSize);
         System.out.println("  Generations:            " + generations);
         long totalSeconds = executionTimeMs / 1000;
@@ -66,23 +66,23 @@ public class OptimizationReport {
         System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s²", baselineMaxAcceleration));
         
-        System.out.println("\n[OPTIMIZED DESIGN]");
-        System.out.println(String.format("  Nose Cone Length:       %.4f m", optimizedNoseCone));
-        System.out.println(String.format("  Body Tube Length:       %.4f m", optimizedBodyTube));
-        System.out.println(String.format("  Fin Root Chord:         %.4f m", optimizedFinRootChord));
-        System.out.println(String.format("  Fin Tip Chord:          %.4f m", optimizedFinTipChord));
-        System.out.println(String.format("  Fin Height:             %.4f m", optimizedFinHeight));
-        System.out.println(String.format("  Fin Sweep Length:       %.4f m", optimizedFinSweepLength));
+        System.out.println("\n[OPTIMISED DESIGN]");
+        System.out.println(String.format("  Nose Cone Length:       %.4f m", optimisedNoseCone));
+        System.out.println(String.format("  Body Tube Length:       %.4f m", optimisedBodyTube));
+        System.out.println(String.format("  Fin Root Chord:         %.4f m", optimisedFinRootChord));
+        System.out.println(String.format("  Fin Tip Chord:          %.4f m", optimisedFinTipChord));
+        System.out.println(String.format("  Fin Height:             %.4f m", optimisedFinHeight));
+        System.out.println(String.format("  Fin Sweep Length:       %.4f m", optimisedFinSweepLength));
         System.out.println("\n  Flight Performance:");
-        System.out.println(String.format("  Apogee:                 %.2f m", optimizedApogee));
-        System.out.println(String.format("  Time to Apogee:         %.2f s", optimizedTimeToApogee));
-        System.out.println(String.format("  Max Velocity:           %.2f m/s", optimizedMaxVelocity));
-        System.out.println(String.format("  Max Acceleration:       %.2f m/s²", optimizedMaxAcceleration));
+        System.out.println(String.format("  Apogee:                 %.2f m", optimisedApogee));
+        System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
+        System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
+        System.out.println(String.format("  Max Acceleration:       %.2f m/s²", optimisedMaxAcceleration));
         
         // Calculate improvements
-        double apogeeImprovement = optimizedApogee - baselineApogee;
+        double apogeeImprovement = optimisedApogee - baselineApogee;
         double apogeeImprovementPercent = (apogeeImprovement / baselineApogee) * 100.0;
-        double velocityImprovement = optimizedMaxVelocity - baselineMaxVelocity;
+        double velocityImprovement = optimisedMaxVelocity - baselineMaxVelocity;
         double velocityImprovementPercent = (velocityImprovement / baselineMaxVelocity) * 100.0;
         
         System.out.println("\n[PERFORMANCE IMPROVEMENTS]");
@@ -95,9 +95,9 @@ public class OptimizationReport {
         
         // Verdict
         if (apogeeImprovement > 0) {
-            System.out.print("                      OPTIMIZATION SUCCESSFUL\n");
+            System.out.print("                      OPTIMISATION SUCCESSFUL\n");
         } else {
-            System.out.println("                        OPTIMIZATION FAILED\n");
+            System.out.println("                        OPTIMISATION FAILED\n");
         }
         System.out.println("═".repeat(70) + "\n");
     }
