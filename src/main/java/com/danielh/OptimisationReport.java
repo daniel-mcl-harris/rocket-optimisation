@@ -40,9 +40,10 @@ public class OptimisationReport {
     }
     
     public void generateReport() {
-        System.out.println("\n" + "═".repeat(70));
+        String border = "=".repeat(70);
+        System.out.println("\n" + border);
         System.out.println("                    ROCKET OPTIMISATION REPORT");
-        System.out.println("═".repeat(70));
+        System.out.println(border);
         
         System.out.println("\n[OPTIMISATION CONFIGURATION]");
         System.out.println("  Population Size:        " + populationSize);
@@ -64,7 +65,7 @@ public class OptimisationReport {
         System.out.println(String.format("  Apogee:                 %.2f m", baselineApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
-        System.out.println(String.format("  Max Acceleration:       %.2f m/s²", baselineMaxAcceleration));
+        System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", baselineMaxAcceleration));
         
         System.out.println("\n[OPTIMISED DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimisedNoseCone));
@@ -77,7 +78,7 @@ public class OptimisationReport {
         System.out.println(String.format("  Apogee:                 %.2f m", optimisedApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
-        System.out.println(String.format("  Max Acceleration:       %.2f m/s²", optimisedMaxAcceleration));
+        System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", optimisedMaxAcceleration));
         
         // Calculate improvements
         double apogeeImprovement = optimisedApogee - baselineApogee;
@@ -91,7 +92,7 @@ public class OptimisationReport {
         System.out.println(String.format("  Max Velocity:           %+.2f m/s (%+.1f%%)", 
             velocityImprovement, velocityImprovementPercent));
         
-        System.out.println("\n" + "═".repeat(70));
+        System.out.println("\n" + "=".repeat(70));
         
         // Verdict
         if (apogeeImprovement > 0) {
@@ -99,6 +100,6 @@ public class OptimisationReport {
         } else {
             System.out.println("                        OPTIMISATION FAILED\n");
         }
-        System.out.println("═".repeat(70) + "\n");
+        System.out.println("=".repeat(70) + "\n");
     }
 }

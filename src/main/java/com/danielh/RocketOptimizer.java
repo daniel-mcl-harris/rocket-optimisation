@@ -69,7 +69,7 @@ public class RocketOptimizer {
         System.out.println("\n=== ROCKET DESIGN OPTIMISATION ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
         System.out.println("Optimising: Nose Cone, Body Tube, Fin Parameters");
-        System.out.println("─────────────────────────────────────────");
+        System.out.println("--------------------------------------------------------------------------");
         
         final Genotype<DoubleGene> baselineGenotype = Genotype.of(
             DoubleChromosome.of(DoubleGene.of(baselineNose, NOSE_CONE_RANGE.min(), NOSE_CONE_RANGE.max())),
@@ -101,7 +101,7 @@ public class RocketOptimizer {
         
         System.setOut(ORIGINAL_OUT);
         System.setErr(ORIGINAL_ERR);
-        System.out.println("─────────────────────────────────────────");
+        System.out.println("--------------------------------------------------------------------------");
         
         OptimisationReport report = new OptimisationReport(populationSize, generations);
         
