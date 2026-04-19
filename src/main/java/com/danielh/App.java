@@ -12,28 +12,60 @@ public class App {
     private static final java.io.PrintStream ORIGINAL_OUT = System.out;
     private static final java.io.PrintStream ORIGINAL_ERR = System.err;
     
+    // Motor dictionary with motor specifications
+    private static final java.util.Map<String, MotorSpec> MOTOR_DICTIONARY = initializeMotorDictionary();
+    
+    private static java.util.Map<String, MotorSpec> initializeMotorDictionary() {
+        java.util.Map<String, MotorSpec> motors = new java.util.HashMap<>();
+        motors.put("I350R-0", new MotorSpec("I350R-0", 0.356, 0.6135));
+        return motors;
+    }
+    
+    static class MotorSpec {
+        String name;
+        double length;
+        double mass;
+        
+        MotorSpec(String name, double length, double mass) {
+            this.name = name;
+            this.length = length;
+            this.mass = mass;
+        }
+    }
+    
     public static void main(String[] args) {
         OpenRocketCore.initialize();
         String rocketPath = "rockets\\GA_base_rocket.ork";
         
         if (args.length > 0 && args[0].equalsIgnoreCase("optimise")) {
+            String motorType = "I350R-0";
             int population = 50;
             int generations = 100;
             
-            if (args.length >= 3) {
+            if (args.length >= 2) {
+                motorType = args[1];
+            }
+            if (args.length >= 4) {
                 try {
-                    population = Integer.parseInt(args[1]);
-                    generations = Integer.parseInt(args[2]);
+                    population = Integer.parseInt(args[2]);
+                    generations = Integer.parseInt(args[3]);
                 } catch (NumberFormatException e) {
-                    System.err.println("Invalid parameters. Usage: App optimise [population] [generations]");
+                    System.err.println("Invalid parameters. Usage: App optimise <motorType> [population] [generations]");
                 }
             }
             
-            runOptimisation(population, generations, rocketPath);
+            // Validate motor type
+            if (!MOTOR_DICTIONARY.containsKey(motorType)) {
+                System.err.println("Unknown motor type: " + motorType);
+                System.err.println("Available motors: " + MOTOR_DICTIONARY.keySet());
+                System.exit(1);
+            }
+            
+            runOptimisation(population, generations, rocketPath, motorType);
         }
     }
     
-    private static void runOptimisation(int population, int generations, String rocketPath) {
+    private static void runOptimisation(int population, int generations, String rocketPath, String motorType) {
         try {
             OpenRocketDocument baselineDoc = loadRocket(new File(rocketPath));
             if (baselineDoc == null) {
@@ -53,7 +85,7 @@ public class App {
             
             OptimisationReport report = RocketOptimizer.optimise(population, generations, rocketPath,
                 baselineNose, baselineBody, baselineRootChord, baselineTipChord, 
-                baselineHeight, baselineSweep);
+                baselineHeight, baselineSweep, motorType);
             
             if (report == null) {
                 System.err.println("Optimisation failed");
@@ -66,6 +98,19 @@ public class App {
             report.baselineFinTipChord = baselineTipChord;
             report.baselineFinHeight = baselineHeight;
             report.baselineFinSweepLength = baselineSweep;
+            // Extract CG for baseline rocket
+            CGBreakdown baselineCG = getComponentCenterOfGravityWithBreakdown(baselineRocket, motorType);
+            report.baselineCenterOfGravity = baselineCG.cgPosition;
+            report.baselineComponentCG = baselineCG.componentDetails;
+            report.baselineCenterOfPressure = getComponentCenterOfPressure(baselineRocket);
+            
+            // Calculate stability margin
+            double baselineTotalLength = getTotalRocketLength(baselineRocket);
+            report.baselineCenterOfPressure = 0.8 * baselineTotalLength; // CP = 80% of rocket length
+            report.caliber = getBodyTubeDiameter(baselineRocket);
+            double baseSM = report.baselineCenterOfPressure - report.baselineCenterOfGravity;
+            report.baselineStabilityMarginCalibres = (report.caliber > 0) ? baseSM / report.caliber : 0;
+            
             if (baselineResult != null) {
                 report.baselineApogee = baselineResult.apogee;
                 report.baselineTimeToApogee = baselineResult.timeToApogee;
@@ -88,6 +133,17 @@ public class App {
                     report.optimisedMaxVelocity = optimisedResult.maxVelocity;
                     report.optimisedMaxAcceleration = optimisedResult.maxAcceleration;
                 }
+                // Extract CG for optimised rocket
+                CGBreakdown optimisedCG = getComponentCenterOfGravityWithBreakdown(optimisedRocket, motorType);
+                report.optimisedCenterOfGravity = optimisedCG.cgPosition;
+                report.optimisedComponentCG = optimisedCG.componentDetails;
+                report.optimisedCenterOfPressure = getComponentCenterOfPressure(optimisedRocket);
+                
+                // Calculate stability margin for optimised design
+                double optimisedTotalLength = getTotalRocketLength(optimisedRocket);
+                report.optimisedCenterOfPressure = 0.8 * optimisedTotalLength; // CP = 80% of rocket length
+                double optSM = report.optimisedCenterOfPressure - report.optimisedCenterOfGravity;
+                report.optimisedStabilityMarginCalibres = (report.caliber > 0) ? optSM / report.caliber : 0;
                 
                 saveOptimisedRocket(optimisedDoc);
             }
@@ -263,6 +319,223 @@ public class App {
         } catch (Exception e) {
             System.err.println("Failed to save optimised rocket: " + e.getMessage());
         }
+    }
+    
+    private static class CGData {
+        double totalMass = 0.0;
+        double totalMoment = 0.0;
+        java.util.List<String> componentBreakdown = new java.util.ArrayList<>();
+    }
+    
+    private static double getComponentCenterOfGravity(Rocket rocket) {
+        try {
+            // Calculate weighted CG from all components
+            CGData data = new CGData();
+            
+            // Recursively process all components
+            for (RocketComponent child : rocket.getChildren()) {
+                processComponentCG(child, data);
+            }
+            
+            if (data.totalMass > 0.001) {
+                double cgPosition = data.totalMoment / data.totalMass;
+                return cgPosition;
+            }
+        } catch (Exception e) {
+            System.err.println("DEBUG CG Exception: " + e.getMessage());
+        }
+        return 0.0;
+    }
+    
+    public static double getComponentCenterOfGravityWithMotor(Rocket rocket, String motorType) {
+        try {
+            // Calculate weighted CG from all components including motor
+            CGData data = new CGData();
+            
+            // Get nose cone and body tube lengths for fin set calculation
+            double noseConeLength = getComponentLength(rocket, NoseCone.class);
+            double bodyTubeLength = getComponentLength(rocket, BodyTube.class);
+            
+            // Recursively process all components
+            for (RocketComponent child : rocket.getChildren()) {
+                processComponentCG(child, data, rocket, noseConeLength, bodyTubeLength);
+            }
+            
+            // Add motor mass to CG calculation
+            MotorSpec motor = MOTOR_DICTIONARY.get(motorType);
+            if (motor != null) {
+                double motorCGFromTip = noseConeLength + bodyTubeLength - (motor.length / 2.0);
+                data.totalMass += motor.mass;
+                data.totalMoment += motor.mass * motorCGFromTip;
+            }
+            
+            if (data.totalMass > 0.001) {
+                double cgPosition = data.totalMoment / data.totalMass;
+                return cgPosition;
+            }
+        } catch (Exception e) {
+            System.err.println("DEBUG CG Exception: " + e.getMessage());
+        }
+        return 0.0;
+    }
+    
+    public static double getBodyTubeDiameter(Rocket rocket) {
+        try {
+            for (RocketComponent child : rocket.getChildren()) {
+                for (RocketComponent subchild : child.getChildren()) {
+                    if (subchild instanceof BodyTube) {
+                        Object diamObj = subchild.getClass().getMethod("getOuterRadius").invoke(subchild);
+                        if (diamObj instanceof Number) {
+                            // Diameter = 2 * radius
+                            return ((Number) diamObj).doubleValue() * 2.0;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+        }
+        return 0.1; // Default caliber if not found
+    }
+    
+    public static double getTotalRocketLength(Rocket rocket) {
+        double noseLength = getComponentLength(rocket, NoseCone.class);
+        double bodyLength = getComponentLength(rocket, BodyTube.class);
+        return noseLength + bodyLength;
+    }
+    
+    public static class CGBreakdown {
+        public double cgPosition;
+        public String[] componentDetails;
+        
+        public CGBreakdown(double cgPos, java.util.List<String> components) {
+            this.cgPosition = cgPos;
+            this.componentDetails = components.toArray(new String[0]);
+        }
+    }
+    
+    private static CGBreakdown getComponentCenterOfGravityWithBreakdown(Rocket rocket, String motorType) {
+        try {
+            // Calculate weighted CG from all components
+            CGData data = new CGData();
+            
+            // Get nose cone and body tube lengths for fin set calculation
+            double noseConeLength = getComponentLength(rocket, NoseCone.class);
+            double bodyTubeLength = getComponentLength(rocket, BodyTube.class);
+            
+            // Recursively process all components
+            for (RocketComponent child : rocket.getChildren()) {
+                processComponentCG(child, data, rocket, noseConeLength, bodyTubeLength);
+            }
+            
+            // Add motor mass to CG calculation
+            MotorSpec motor = MOTOR_DICTIONARY.get(motorType);
+            if (motor != null) {
+                double motorCGFromTip = noseConeLength + bodyTubeLength - (motor.length / 2.0);
+                
+                String motorDetail = String.format("    Motor (%s): %.4f m (mass: %.4f kg)",
+                    motorType, motorCGFromTip, motor.mass);
+                data.componentBreakdown.add(motorDetail);
+                
+                data.totalMass += motor.mass;
+                data.totalMoment += motor.mass * motorCGFromTip;
+            }
+            
+            if (data.totalMass > 0.001) {
+                double cgPosition = data.totalMoment / data.totalMass;
+                return new CGBreakdown(cgPosition, data.componentBreakdown);
+            }
+        } catch (Exception e) {
+            System.err.println("DEBUG CG Exception: " + e.getMessage());
+        }
+        return new CGBreakdown(0.0, java.util.Collections.emptyList());
+    }
+    
+    private static void processComponentCG(RocketComponent component, CGData data, Rocket rocket, 
+                                           double noseConeLength, double bodyTubeLength) {
+        try {
+            // Get component mass
+            double mass = (double) component.getClass().getMethod("getMass").invoke(component);
+            
+            if (mass > 0.001) {
+                // Special handling for FinSet
+                if (component.getClass().getSimpleName().contains("FinSet")) {
+                    // For fin sets: CG_finset = nose_cone_length + body_tube_length - fin_root_chord + fin_CG
+                    try {
+                        // Get fin root chord
+                        Object rootChordObj = component.getClass().getMethod("getRootChord").invoke(component);
+                        double rootChord = (rootChordObj instanceof Number) ? ((Number) rootChordObj).doubleValue() : 0.0;
+                        
+                        // Get the fin set's internal CG (relative to fin set start)
+                        Object cgCoord = component.getClass().getMethod("getComponentCG").invoke(component);
+                        if (cgCoord != null) {
+                            Object xValue = cgCoord.getClass().getField("x").get(cgCoord);
+                            if (xValue instanceof Number) {
+                                double finCG = ((Number) xValue).doubleValue();
+                                
+                                // Calculate absolute CG: nose + body - root_chord + fin_CG
+                                double absoluteCGX = noseConeLength + bodyTubeLength - rootChord + finCG;
+                                
+                                String detail = String.format("    %s: %.4f m (mass: %.4f kg)",
+                                    component.getName(), absoluteCGX, mass);
+                                data.componentBreakdown.add(detail);
+                                
+                                data.totalMass += mass;
+                                data.totalMoment += mass * absoluteCGX;
+                                return;
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Fall through to standard calculation if special handling fails
+                    }
+                }
+                
+                // Standard component CG calculation (for nose cone, body tube, etc.)
+                Object cgCoord = component.getClass().getMethod("getComponentCG").invoke(component);
+                if (cgCoord != null) {
+                    Object xValue = cgCoord.getClass().getField("x").get(cgCoord);
+                    if (xValue instanceof Number) {
+                        double componentCGX = ((Number) xValue).doubleValue();
+                        
+                        // Get component position in rocket (axial offset)
+                        Object posCoord = component.getClass().getMethod("getPosition").invoke(component);
+                        if (posCoord != null) {
+                            Object posXValue = posCoord.getClass().getField("x").get(posCoord);
+                            if (posXValue instanceof Number) {
+                                double componentPosition = ((Number) posXValue).doubleValue();
+                                
+                                // Calculate absolute position of component CG
+                                double absoluteCGX = componentPosition + componentCGX;
+                                
+                                String detail = String.format("    %s: %.4f m (mass: %.4f kg)",
+                                    component.getName(), absoluteCGX, mass);
+                                data.componentBreakdown.add(detail);
+                                
+                                data.totalMass += mass;
+                                data.totalMoment += mass * absoluteCGX;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Process child components
+            for (RocketComponent child : component.getChildren()) {
+                processComponentCG(child, data, rocket, noseConeLength, bodyTubeLength);
+            }
+        } catch (Exception e) {
+            // Silently skip components that fail
+        }
+    }
+    
+    private static double getComponentCenterOfPressure(Rocket rocket) {
+        try {
+            // Center of Pressure needs to be calculated using FlightConditions
+            // For now, return 0 as it requires more complex calculation
+            // This would need: rocket.getAerodynamicCalculator().getCP(flightConditions)
+        } catch (Exception e) {
+            // Silently fail
+        }
+        return 0.0;
     }
     
     static class SimulationResult {
