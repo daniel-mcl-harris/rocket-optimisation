@@ -1,6 +1,9 @@
 com\danielh\App.class
 com\danielh\FilteringPrintStream.class
 com\danielh\App$SimulationResult.class
+com\danielh\App$CGBreakdown.class
 com\danielh\RocketOptimizer.class
+com\danielh\App$MotorSpec.class
 com\danielh\FilteringPrintStream$FilteringOutputStream.class
 com\danielh\OptimisationReport.class
+com\danielh\App$CGData.class

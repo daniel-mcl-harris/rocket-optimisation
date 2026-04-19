@@ -17,14 +17,14 @@ public class RocketOptimizer {
     
     private static final DoubleRange NOSE_CONE_RANGE = DoubleRange.of(0.1, 1.0);
     private static final DoubleRange BODY_TUBE_RANGE = DoubleRange.of(0.4, 1.0);
-    private static final DoubleRange FIN_ROOT_CHORD_RANGE = DoubleRange.of(0.03, 0.15);
-    private static final DoubleRange FIN_TIP_CHORD_RANGE = DoubleRange.of(0.01, 0.08);
-    private static final DoubleRange FIN_HEIGHT_RANGE = DoubleRange.of(0.03, 0.15);
-    private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.1);
+    private static final DoubleRange FIN_ROOT_CHORD_RANGE = DoubleRange.of(0.1, 0.2);
+    private static final DoubleRange FIN_TIP_CHORD_RANGE = DoubleRange.of(0.0, 0.2);
+    private static final DoubleRange FIN_HEIGHT_RANGE = DoubleRange.of(0.03, 0.2);
+    private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.05);
     
     private static Rocket baseRocket;
     private static String rocketFilePath;
-    private static String motorType = "I350R-0"; // Default motor type
+    private static String motorType;
     
     public static OptimisationReport optimise(int populationSize, int generations, String rocketPath,
                                                double baselineNose, double baselineBody,
@@ -156,7 +156,7 @@ public class RocketOptimizer {
             
             double apogee = getDoubleFromMethod(simulatedData, "getMaxAltitude");
             
-            // Calculate stability margin penalty
+            // Penalise low stability solutions
             double penalizedApogee = calculatePenalizedApogee(rocket, apogee);
             
             return -penalizedApogee;
@@ -169,48 +169,29 @@ public class RocketOptimizer {
     }
     
     private static double calculatePenalizedApogee(Rocket rocket, double apogee) {
-        try {
-            // Calculate CG (including motor)
-            double cg = App.getComponentCenterOfGravityWithMotor(rocket, motorType);
-            
-            // Calculate CP as 80% of total rocket length
-            double totalLength = App.getTotalRocketLength(rocket);
-            double cp = 0.8 * totalLength;
-            
-            // Get caliber (body tube diameter)
-            double caliber = App.getBodyTubeDiameter(rocket);
-            
-            if (caliber < 0.001) {
-                return apogee; // No penalty if caliber cannot be determined
-            }
-            
-            // Calculate stability margin in calibres
-            double stabilityMargin = (cp - cg) / caliber;
-            
-            // Calculate penalty using exponential function
-            // SM >= 2.0: penalty = 0% (no penalty)
-            // SM < 2.0: penalty = 1 - e^(-1/(2.0 - SM)) for heavy early penalty
-            double penalty = 0.0;
-            
-            if (stabilityMargin >= 2.0) {
-                penalty = 0.0;
-            } else if (stabilityMargin > 0.0) {
-                // Exponential penalty: steep curve as SM drops below 2.0
-                // penalty = 1 - e^(-1/(2.0 - SM))
-                double marginBelowThreshold = 2.0 - stabilityMargin;
-                penalty = 1.0 - Math.exp(-marginBelowThreshold);
-            } else {
-                // Negative stability margin gets maximum penalty
-                penalty = 1.0;
-            }
-            
-            // Apply penalty: penalizedApogee = apogee * (1 - penalty)
-            double penalizedApogee = apogee * (1.0 - penalty);
-            
-            return penalizedApogee;
-        } catch (Exception e) {
-            return apogee; // No penalty if calculation fails
+        double cg = App.getComponentCenterOfGravityWithMotor(rocket, motorType);
+        
+        // Estimate CP at 80% of rocket length
+        double totalLength = App.getTotalRocketLength(rocket);
+        double cp = 0.8 * totalLength;
+        
+        // Calculate stability margin in calibers
+        double caliber = App.getBodyTubeDiameter(rocket);
+        double stabilityMargin = (cp - cg) / caliber;
+        
+        // Apply exponential penalty
+        double penalty = 0.0;
+
+        if (stabilityMargin >= 2.0) {
+            penalty = 0.0;
+        } else if (stabilityMargin > 0.0) {
+            double marginBelowThreshold = 2.0 - stabilityMargin;
+            penalty = 1.0 - Math.exp(-marginBelowThreshold);
+        } else {
+            penalty = 1.0;
         }
+        
+        return apogee * (1.0 - penalty);
     }
     
     private static Rocket reloadRocket() {

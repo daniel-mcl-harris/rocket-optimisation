@@ -5,5 +5,5 @@ GA_base_rocket.ork file is specified in /rockets, algorithm iterates on this bas
 Base rocket should include all internal components and NoseCone, BodyTube and TrapezoidalFinSet. GA optimises these parameters.
 Allowable ranges for genotype parameters need to be specified RocketOptimiser.java. 
 Output rocket design written to /rockets/GA_rocket_vX.ork.
-Run with Windows PowerShell: cd: ./run.ps1 optimise x y
-where x, y are pop_size and generations e.g. 50 100
+Run with Windows PowerShell: cd: ./run.ps1 optimise motor x y
+where x, y are pop_size and generations e.g. 50 100 and motor is from the valid motor list [I350R-0]

@@ -327,26 +327,6 @@ public class App {
         java.util.List<String> componentBreakdown = new java.util.ArrayList<>();
     }
     
-    private static double getComponentCenterOfGravity(Rocket rocket) {
-        try {
-            // Calculate weighted CG from all components
-            CGData data = new CGData();
-            
-            // Recursively process all components
-            for (RocketComponent child : rocket.getChildren()) {
-                processComponentCG(child, data);
-            }
-            
-            if (data.totalMass > 0.001) {
-                double cgPosition = data.totalMoment / data.totalMass;
-                return cgPosition;
-            }
-        } catch (Exception e) {
-            System.err.println("DEBUG CG Exception: " + e.getMessage());
-        }
-        return 0.0;
-    }
-    
     public static double getComponentCenterOfGravityWithMotor(Rocket rocket, String motorType) {
         try {
             // Calculate weighted CG from all components including motor
