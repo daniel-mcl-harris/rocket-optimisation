@@ -5,7 +5,6 @@ import io.jenetics.engine.Engine;
 import io.jenetics.util.DoubleRange;
 import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.document.OpenRocketDocument;
-import info.openrocket.core.document.Simulation;
 import info.openrocket.core.file.GeneralRocketLoader;
 import me.tongfei.progressbar.ProgressBar;
 import java.io.File;
@@ -22,26 +21,21 @@ public class RocketOptimizer {
     private static final DoubleRange FIN_HEIGHT_RANGE = DoubleRange.of(0.03, 0.2);
     private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.05);
     
-    private static Rocket baseRocket;
     private static String rocketFilePath;
-    private static String motorType;
     
     public static OptimisationReport optimise(int populationSize, int generations, String rocketPath,
                                                double baselineNose, double baselineBody,
                                                double baselineRootChord, double baselineTipChord,
-                                               double baselineHeight, double baselineSweepLength,
-                                               String motor) {
-        motorType = motor;
+                                               double baselineHeight, double baselineSweepLength) {
         long startTime = System.currentTimeMillis();
         rocketFilePath = rocketPath;
         
         try {
             OpenRocketDocument document = loadRocket(new File(rocketPath));
-            if (document == null) {
+            if (document == null || document.getRocket() == null) {
                 System.err.println("Failed to load rocket document");
                 return null;
             }
-            baseRocket = document.getRocket();
         } catch (Exception e) {
             System.err.println("Error loading rocket: " + e.getMessage());
             return null;
@@ -147,17 +141,10 @@ public class RocketOptimizer {
                 genotype.get(2).get(0).allele(), genotype.get(3).get(0).allele(),
                 genotype.get(4).get(0).allele(), genotype.get(5).get(0).allele());
             
-            Simulation simulation = new Simulation(rocket);
-            simulation.simulate();
-            
-            java.lang.reflect.Method getSimulatedData = simulation.getClass().getMethod("getSimulatedData");
-            Object simulatedData = getSimulatedData.invoke(simulation);
-            if (simulatedData == null) return 1000.0;
-            
-            double apogee = getDoubleFromMethod(simulatedData, "getMaxAltitude");
-            
-            // Penalise low stability solutions
-            double penalizedApogee = calculatePenalizedApogee(rocket, apogee);
+            RocketAnalysis.FlightResult flight = RocketAnalysis.simulate(rocket);
+            if (flight == null) return 1000.0;
+
+            double penalizedApogee = calculatePenalizedApogee(rocket, flight.apogee);
             
             return -penalizedApogee;
         } catch (Exception e) {
@@ -169,18 +156,12 @@ public class RocketOptimizer {
     }
     
     private static double calculatePenalizedApogee(Rocket rocket, double apogee) {
-        double cg = App.getComponentCenterOfGravityWithMotor(rocket, motorType);
-        
-        // Estimate CP at 80% of rocket length
-        double totalLength = App.getTotalRocketLength(rocket);
-        double cp = 0.8 * totalLength;
-        
-        // Calculate stability margin in calibers
-        double caliber = App.getBodyTubeDiameter(rocket);
-        double stabilityMargin = (cp - cg) / caliber;
-        
-        // Apply exponential penalty
+        double stabilityMargin = RocketAnalysis.launchStabilityCalibres(rocket);
+
         double penalty = 0.0;
+        if (Double.isNaN(stabilityMargin)) {
+            return 0.0;
+        }
 
         if (stabilityMargin >= 2.0) {
             penalty = 0.0;
@@ -271,15 +252,6 @@ public class RocketOptimizer {
             obj.getClass().getMethod(methodName, double.class).invoke(obj, value);
         } catch (Exception e) {
         }
-    }
-    
-    private static double getDoubleFromMethod(Object obj, String methodName) {
-        try {
-            Object result = obj.getClass().getMethod(methodName).invoke(obj);
-            if (result instanceof Double) return (Double) result;
-        } catch (Exception e) {
-        }
-        return 0.0;
     }
     
 }
