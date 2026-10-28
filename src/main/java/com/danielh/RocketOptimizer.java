@@ -146,49 +146,16 @@ public class RocketOptimizer {
                 genotype.get(4).get(0).allele(), genotype.get(5).get(0).allele());
             
             RocketAnalysis.Ensemble ensemble = RocketAnalysis.flyAllWinds(rocket);
-            double margin = stabilityMargin(rocket, ensemble);
-            double penalizedApogee = penalize(ensemble.average.apogee, margin);
-            
-            return -penalizedApogee;
+            double margin = FlightFitness.governingMargin(
+                    RocketAnalysis.launchStabilityCalibres(rocket),
+                    ensemble.minimumInFlightStability);
+            return -FlightFitness.score(ensemble.average.apogee, margin);
         } catch (Exception e) {
             return 1000.0;
         } finally {
             System.setOut(ORIGINAL_OUT);
             System.setErr(ORIGINAL_ERR);
         }
-    }
-    
-    /**
-     * Static Barrowman margin, and the worst in-flight margin across the wind
-     * cases. Weathercocking under the breezy case can pull the in-flight value
-     * below the static one; the penalty uses whichever is smaller.
-     */
-    private static double stabilityMargin(Rocket rocket, RocketAnalysis.Ensemble ensemble) {
-        double margin = RocketAnalysis.launchStabilityCalibres(rocket);
-        double inFlight = ensemble.minimumInFlightStability;
-        if (Double.isNaN(inFlight)) {
-            return margin;
-        }
-        if (Double.isNaN(margin)) {
-            return inFlight;
-        }
-        return Math.min(margin, inFlight);
-    }
-
-    private static double penalize(double apogee, double stabilityMargin) {
-        if (Double.isNaN(apogee) || Double.isNaN(stabilityMargin)) {
-            return 0.0;
-        }
-        double penalty;
-        if (stabilityMargin >= 2.0) {
-            penalty = 0.0;
-        } else if (stabilityMargin > 0.0) {
-            double marginBelowThreshold = 2.0 - stabilityMargin;
-            penalty = 1.0 - Math.exp(-marginBelowThreshold);
-        } else {
-            penalty = 1.0;
-        }
-        return apogee * (1.0 - penalty);
     }
     
     private static Rocket reloadRocket() {
