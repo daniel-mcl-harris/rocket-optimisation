@@ -2,6 +2,5 @@
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.project.referencedLibraries": [
         "libs/OpenRocket-23.09.jar"
-    ],
-    "java.compile.nullAnalysis.mode": "automatic"
+    ]
 }

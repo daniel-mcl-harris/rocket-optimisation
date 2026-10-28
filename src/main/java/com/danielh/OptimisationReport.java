@@ -17,6 +17,15 @@ public class OptimisationReport {
     public double baselineTimeToApogee;
     public double baselineMaxVelocity;
     public double baselineMaxAcceleration;
+    public double baselineLaunchRodVelocity;
+    public double baselineFlightTime;
+    public double baselineMinFlightStabilityCalibres;
+    public double baselineMaxFlightStabilityCalibres;
+    public double baselineLaunchMass;
+    public double baselineBurnoutMass;
+    public double baselineDryMass;
+    public double baselineBurnoutCenterOfGravity;
+    public double baselineCenterOfPressureZeroAngle;
     
     public double optimisedNoseCone;
     public double optimisedBodyTube;
@@ -28,6 +37,15 @@ public class OptimisationReport {
     public double optimisedTimeToApogee;
     public double optimisedMaxVelocity;
     public double optimisedMaxAcceleration;
+    public double optimisedLaunchRodVelocity;
+    public double optimisedFlightTime;
+    public double optimisedMinFlightStabilityCalibres;
+    public double optimisedMaxFlightStabilityCalibres;
+    public double optimisedLaunchMass;
+    public double optimisedBurnoutMass;
+    public double optimisedDryMass;
+    public double optimisedBurnoutCenterOfGravity;
+    public double optimisedCenterOfPressureZeroAngle;
     
     // Center of Pressure and Center of Gravity
     public double baselineCenterOfGravity;
@@ -78,22 +96,31 @@ public class OptimisationReport {
         System.out.println(String.format("  Fin Tip Chord:          %.4f m", baselineFinTipChord));
         System.out.println(String.format("  Fin Height:             %.4f m", baselineFinHeight));
         System.out.println(String.format("  Fin Sweep Length:       %.4f m", baselineFinSweepLength));
-        System.out.println(String.format("  Center of Gravity:      %.4f m", baselineCenterOfGravity));
+        System.out.println(String.format("  Center of Gravity:      %.4f m  (launch, with propellant)", baselineCenterOfGravity));
+        System.out.println(String.format("  Launch Mass:            %.4f kg", baselineLaunchMass));
+        System.out.println(String.format("  Burnout CG:             %.4f m", baselineBurnoutCenterOfGravity));
+        System.out.println(String.format("  Burnout Mass:           %.4f kg", baselineBurnoutMass));
+        System.out.println(String.format("  Dry Mass:               %.4f kg", baselineDryMass));
         if (baselineComponentCG != null && baselineComponentCG.length > 0) {
             System.out.println("    Component Breakdown:");
             for (String component : baselineComponentCG) {
                 System.out.println(component);
             }
         }
-        System.out.println(String.format("  Center of Pressure:     %.4f m", baselineCenterOfPressure));
+        System.out.println(String.format("  Center of Pressure:     %.4f m  (Barrowman, most forward)", baselineCenterOfPressure));
+        System.out.println(String.format("  CP at 0 deg wind:       %.4f m", baselineCenterOfPressureZeroAngle));
         double baseSMAbsolute = baselineCenterOfPressure - baselineCenterOfGravity;
         System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
             baseSMAbsolute, baselineStabilityMarginCalibres));
+        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres",
+            baselineMinFlightStabilityCalibres, baselineMaxFlightStabilityCalibres));
         System.out.println("\n  Flight Performance:");
         System.out.println(String.format("  Apogee:                 %.2f m", baselineApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
+        System.out.println(String.format("  Flight Time:            %.2f s", baselineFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", baselineMaxAcceleration));
+        System.out.println(String.format("  Velocity off Rod:       %.2f m/s", baselineLaunchRodVelocity));
         
         System.out.println("\n[OPTIMISED DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimisedNoseCone));
@@ -102,22 +129,31 @@ public class OptimisationReport {
         System.out.println(String.format("  Fin Tip Chord:          %.4f m", optimisedFinTipChord));
         System.out.println(String.format("  Fin Height:             %.4f m", optimisedFinHeight));
         System.out.println(String.format("  Fin Sweep Length:       %.4f m", optimisedFinSweepLength));
-        System.out.println(String.format("  Center of Gravity:      %.4f m", optimisedCenterOfGravity));
+        System.out.println(String.format("  Center of Gravity:      %.4f m  (launch, with propellant)", optimisedCenterOfGravity));
+        System.out.println(String.format("  Launch Mass:            %.4f kg", optimisedLaunchMass));
+        System.out.println(String.format("  Burnout CG:             %.4f m", optimisedBurnoutCenterOfGravity));
+        System.out.println(String.format("  Burnout Mass:           %.4f kg", optimisedBurnoutMass));
+        System.out.println(String.format("  Dry Mass:               %.4f kg", optimisedDryMass));
         if (optimisedComponentCG != null && optimisedComponentCG.length > 0) {
             System.out.println("    Component Breakdown:");
             for (String component : optimisedComponentCG) {
                 System.out.println(component);
             }
         }
-        System.out.println(String.format("  Center of Pressure:     %.4f m", optimisedCenterOfPressure));
+        System.out.println(String.format("  Center of Pressure:     %.4f m  (Barrowman, most forward)", optimisedCenterOfPressure));
+        System.out.println(String.format("  CP at 0 deg wind:       %.4f m", optimisedCenterOfPressureZeroAngle));
         double optSMAbsolute = optimisedCenterOfPressure - optimisedCenterOfGravity;
         System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
             optSMAbsolute, optimisedStabilityMarginCalibres));
+        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres",
+            optimisedMinFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres));
         System.out.println("\n  Flight Performance:");
         System.out.println(String.format("  Apogee:                 %.2f m", optimisedApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
+        System.out.println(String.format("  Flight Time:            %.2f s", optimisedFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", optimisedMaxAcceleration));
+        System.out.println(String.format("  Velocity off Rod:       %.2f m/s", optimisedLaunchRodVelocity));
         
         // Calculate improvements
         double apogeeImprovement = optimisedApogee - baselineApogee;
