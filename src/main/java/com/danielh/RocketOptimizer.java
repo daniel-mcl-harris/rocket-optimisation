@@ -146,10 +146,11 @@ public class RocketOptimizer {
                 genotype.get(4).get(0).allele(), genotype.get(5).get(0).allele());
             
             RocketAnalysis.Ensemble ensemble = RocketAnalysis.flyAllWinds(rocket);
-            double margin = FlightFitness.governingMargin(
-                    RocketAnalysis.launchStabilityCalibres(rocket),
-                    ensemble.minimumInFlightStability);
-            return -FlightFitness.score(ensemble.average.apogee, margin);
+            double meanApogee = ensemble.average.apogee;
+            if (Double.isNaN(meanApogee)) {
+                return 1000.0;
+            }
+            return -meanApogee;
         } catch (Exception e) {
             return 1000.0;
         } finally {

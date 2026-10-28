@@ -20,7 +20,7 @@ The wind cases are a light breeze, a typical club afternoon, and a breezy day:
 | moderate | 4 m/s (about 8 knots) | 0.12 | medium |
 | breezy | 7 m/s (about 14 knots) | 0.18 | high |
 
-Designs are penalised when the smaller of the static Barrowman margin and the worst in-flight margin across those winds is below 2 calibres. The search maximises that penalised mean apogee. The final verdict uses the same score: a gain of more than 1 m is a success, a change of 1 m or less either way is no significant change, and a drop of more than 1 m is a failure. A lower raw apogee can still be a success when the base design was penalised and the new design was not. The report prints raw mean apogee, the penalty, and the fitness for both designs. Genotype ranges are in `RocketOptimizer.java`. The fin sweep length range is 0 to 0.05 m. Each accepted design is written to `rockets/GA_rocket_vX.ork`.
+Fitness is that mean apogee alone. OpenRocket's flight simulation already lowers apogee when a design is poorly stable, so there is no separate stability penalty. The verdict uses the same number: a gain of more than 1 m is a success, a change of 1 m or less either way is no significant change, and a drop of more than 1 m is a failure. Static Barrowman margin and the in-flight stability range are still printed. If the final design's static margin or worst in-flight margin is below 1 calibre, or if the static margin or the highest in-flight margin is above 6 calibres, the report prints a warning and still scores apogee only. Genotype ranges are in `RocketOptimizer.java`. The fin sweep length range is 0 to 0.05 m. Each accepted design is written to `rockets/GA_rocket_vX.ork`.
 
 On Windows, from the project directory:
 

@@ -63,15 +63,6 @@ public class OptimisationReport {
     public String motorDescription;
     public String[] baselineWindCases;
     public String[] optimisedWindCases;
-
-    /** Penalised mean apogee. Higher is better, and this is what the verdict uses. */
-    public double baselineFitness;
-    public double optimisedFitness;
-    /** Fraction of mean apogee removed by the stability penalty, from 0 to 1. */
-    public double baselinePenalty;
-    public double optimisedPenalty;
-    public double baselineGoverningStabilityCalibres;
-    public double optimisedGoverningStabilityCalibres;
     
     // Component CG breakdowns
     public String[] baselineComponentCG;
@@ -132,10 +123,7 @@ public class OptimisationReport {
         System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
             baselineMinFlightStabilityCalibres, baselineMaxFlightStabilityCalibres));
         System.out.println("\n  Flight Performance (mean of the wind cases):");
-        System.out.println(String.format("  Raw mean apogee:        %.2f m", baselineApogee));
-        System.out.println(String.format("  Stability penalty:      %.1f%% (margin %.2f cal)",
-                baselinePenalty * 100.0, baselineGoverningStabilityCalibres));
-        System.out.println(String.format("  Fitness:                %.2f m", baselineFitness));
+        System.out.println(String.format("  Mean apogee (fitness):  %.2f m", baselineApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
         System.out.println(String.format("  Flight Time:            %.2f s", baselineFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
@@ -169,10 +157,7 @@ public class OptimisationReport {
         System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
             optimisedMinFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres));
         System.out.println("\n  Flight Performance (mean of the wind cases):");
-        System.out.println(String.format("  Raw mean apogee:        %.2f m", optimisedApogee));
-        System.out.println(String.format("  Stability penalty:      %.1f%% (margin %.2f cal)",
-                optimisedPenalty * 100.0, optimisedGoverningStabilityCalibres));
-        System.out.println(String.format("  Fitness:                %.2f m", optimisedFitness));
+        System.out.println(String.format("  Mean apogee (fitness):  %.2f m", optimisedApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
         System.out.println(String.format("  Flight Time:            %.2f s", optimisedFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
@@ -186,22 +171,26 @@ public class OptimisationReport {
         double velocityImprovement = optimisedMaxVelocity - baselineMaxVelocity;
         double velocityImprovementPercent = (velocityImprovement / baselineMaxVelocity) * 100.0;
         
-        double fitnessImprovement = optimisedFitness - baselineFitness;
-        double fitnessImprovementPercent = baselineFitness == 0.0
-                ? 0.0
-                : (fitnessImprovement / baselineFitness) * 100.0;
-
         System.out.println("\n[PERFORMANCE IMPROVEMENTS]");
-        System.out.println(String.format("  Fitness:                %+.2f m (%+.1f%%)",
-            fitnessImprovement, fitnessImprovementPercent));
-        System.out.println(String.format("  Raw mean apogee:        %+.2f m (%+.1f%%)",
+        System.out.println(String.format("  Mean apogee (fitness):  %+.2f m (%+.1f%%)",
             apogeeImprovement, apogeeImprovementPercent));
         System.out.println(String.format("  Max Velocity:           %+.2f m/s (%+.1f%%)", 
             velocityImprovement, velocityImprovementPercent));
+
+        java.util.List<String> stabilityWarnings = FlightFitness.stabilityWarnings(
+                optimisedStabilityMarginCalibres,
+                optimisedMinFlightStabilityCalibres,
+                optimisedMaxFlightStabilityCalibres);
+        if (!stabilityWarnings.isEmpty()) {
+            System.out.println("\n  WARNING: stability is outside 1 to 6 calibres. It is not part of the score.");
+            for (String warning : stabilityWarnings) {
+                System.out.println("  " + warning);
+            }
+        }
         
         System.out.println("\n" + "=".repeat(70));
         
-        String verdict = FlightFitness.verdict(baselineFitness, optimisedFitness);
+        String verdict = FlightFitness.verdict(baselineApogee, optimisedApogee);
         int pad = Math.max(0, (70 - verdict.length()) / 2);
         System.out.println(" ".repeat(pad) + verdict);
         System.out.println("=".repeat(70) + "\n");

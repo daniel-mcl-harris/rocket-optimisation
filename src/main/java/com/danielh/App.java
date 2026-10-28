@@ -87,7 +87,6 @@ public class App {
             
             if (baselineResult != null) {
                 applyEnsemble(report, baselineResult, true);
-                applyFitness(report, true);
             }
             
             OpenRocketDocument optimisedDoc = loadRocket(new File(rocketPath));
@@ -105,9 +104,6 @@ public class App {
                 }
                 RocketAnalysis.MassProperties optimisedMass = RocketAnalysis.massProperties(optimisedRocket);
                 applyMassProperties(report, optimisedMass, false);
-                if (optimisedResult != null) {
-                    applyFitness(report, false);
-                }
                 
                 saveOptimisedRocket(optimisedDoc);
             }
@@ -268,26 +264,6 @@ public class App {
             report.optimisedMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.optimisedMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
             report.optimisedWindCases = ensemble.caseLines;
-        }
-    }
-
-    private static void applyFitness(OptimisationReport report, boolean baseline) {
-        double staticMargin = baseline
-                ? report.baselineStabilityMarginCalibres
-                : report.optimisedStabilityMarginCalibres;
-        double inFlight = baseline
-                ? report.baselineMinFlightStabilityCalibres
-                : report.optimisedMinFlightStabilityCalibres;
-        double apogee = baseline ? report.baselineApogee : report.optimisedApogee;
-        double margin = FlightFitness.governingMargin(staticMargin, inFlight);
-        if (baseline) {
-            report.baselineGoverningStabilityCalibres = margin;
-            report.baselinePenalty = FlightFitness.penalty(margin);
-            report.baselineFitness = FlightFitness.score(apogee, margin);
-        } else {
-            report.optimisedGoverningStabilityCalibres = margin;
-            report.optimisedPenalty = FlightFitness.penalty(margin);
-            report.optimisedFitness = FlightFitness.score(apogee, margin);
         }
     }
     
