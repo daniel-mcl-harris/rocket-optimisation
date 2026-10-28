@@ -20,7 +20,7 @@ public class RocketOptimizer {
     private static final DoubleRange FIN_ROOT_CHORD_RANGE = DoubleRange.of(0.1, 0.2);
     private static final DoubleRange FIN_TIP_CHORD_RANGE = DoubleRange.of(0.0, 0.2);
     private static final DoubleRange FIN_HEIGHT_RANGE = DoubleRange.of(0.03, 0.2);
-    private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.05);
+    private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.1);
     
     private static Rocket baseRocket;
     private static String rocketFilePath;
