@@ -11,10 +11,6 @@ public class App {
     private static final java.io.PrintStream ORIGINAL_OUT = System.out;
     private static final java.io.PrintStream ORIGINAL_ERR = System.err;
 
-    // Names accepted on the command line. Mass and CG come from the motor
-    // mounted in the .ork, not from this list.
-    private static final java.util.Set<String> MOTORS = java.util.Set.of("I350R-0");
-
     public static void main(String[] args) {
         OpenRocketCore.initialize();
         String rocketPath = new File("rockets", "GA_base_rocket.ork").getPath();
@@ -35,18 +31,23 @@ public class App {
                     System.err.println("Invalid parameters. Usage: App optimise <motorType> [population] [generations]");
                 }
             }
-            
-            if (!MOTORS.contains(motorType)) {
-                System.err.println("Unknown motor type: " + motorType);
-                System.err.println("Available motors: " + MOTORS);
+
+            MotorCatalogue.Selection motor;
+            try {
+                motor = MotorCatalogue.select(motorType);
+            } catch (MotorCatalogue.MotorLookupException e) {
+                System.err.println(e.getMessage());
                 System.exit(1);
+                return;
             }
+            System.out.println("Motor: " + motor.describe());
             
-            runOptimisation(population, generations, rocketPath, motorType);
+            runOptimisation(population, generations, rocketPath, motor);
         }
     }
     
-    private static void runOptimisation(int population, int generations, String rocketPath, String motorType) {
+    private static void runOptimisation(int population, int generations, String rocketPath,
+                                        MotorCatalogue.Selection motor) {
         try {
             OpenRocketDocument baselineDoc = loadRocket(new File(rocketPath));
             if (baselineDoc == null) {
@@ -54,6 +55,7 @@ public class App {
                 return;
             }
             Rocket baselineRocket = baselineDoc.getRocket();
+            MotorCatalogue.mount(baselineRocket, motor);
             
             double baselineNose = getComponentLength(baselineRocket, NoseCone.class);
             double baselineBody = getComponentLength(baselineRocket, BodyTube.class);
@@ -62,11 +64,11 @@ public class App {
             double baselineHeight = getFinParameter(baselineRocket, "getHeight");
             double baselineSweep = getFinParameter(baselineRocket, "getSweep");
             
-            RocketAnalysis.FlightResult baselineResult = runSimulation(baselineRocket);
+            RocketAnalysis.Ensemble baselineResult = runEnsemble(baselineRocket);
             
             OptimisationReport report = RocketOptimizer.optimise(population, generations, rocketPath,
                 baselineNose, baselineBody, baselineRootChord, baselineTipChord, 
-                baselineHeight, baselineSweep);
+                baselineHeight, baselineSweep, motor);
             
             if (report == null) {
                 System.err.println("Optimisation failed");
@@ -79,25 +81,26 @@ public class App {
             report.baselineFinTipChord = baselineTipChord;
             report.baselineFinHeight = baselineHeight;
             report.baselineFinSweepLength = baselineSweep;
+            report.motorDescription = motor.describe();
             RocketAnalysis.MassProperties baselineMass = RocketAnalysis.massProperties(baselineRocket);
-            warnIfMotorDiffers(motorType, baselineMass.motorDesignation);
             applyMassProperties(report, baselineMass, true);
             
             if (baselineResult != null) {
-                applyFlightResult(report, baselineResult, true);
+                applyEnsemble(report, baselineResult, true);
             }
             
             OpenRocketDocument optimisedDoc = loadRocket(new File(rocketPath));
             if (optimisedDoc != null) {
                 Rocket optimisedRocket = optimisedDoc.getRocket();
+                MotorCatalogue.mount(optimisedRocket, motor);
                 setComponentLength(optimisedRocket, NoseCone.class, report.optimisedNoseCone);
                 setComponentLength(optimisedRocket, BodyTube.class, report.optimisedBodyTube);
                 setFinParameters(optimisedRocket, report.optimisedFinRootChord, 
                     report.optimisedFinTipChord, report.optimisedFinHeight, report.optimisedFinSweepLength);
                 
-                RocketAnalysis.FlightResult optimisedResult = runSimulation(optimisedRocket);
+                RocketAnalysis.Ensemble optimisedResult = runEnsemble(optimisedRocket);
                 if (optimisedResult != null) {
-                    applyFlightResult(report, optimisedResult, false);
+                    applyEnsemble(report, optimisedResult, false);
                 }
                 RocketAnalysis.MassProperties optimisedMass = RocketAnalysis.massProperties(optimisedRocket);
                 applyMassProperties(report, optimisedMass, false);
@@ -203,25 +206,12 @@ public class App {
         }
     }
     
-    private static RocketAnalysis.FlightResult runSimulation(Rocket rocket) {
+    private static RocketAnalysis.Ensemble runEnsemble(Rocket rocket) {
         try {
-            return RocketAnalysis.simulate(rocket);
+            return RocketAnalysis.flyAllWinds(rocket);
         } catch (Exception e) {
             System.err.println("Simulation failed: " + e.getMessage());
             return null;
-        }
-    }
-
-    private static void warnIfMotorDiffers(String requestedMotor, String mountedDesignation) {
-        if (mountedDesignation == null) {
-            System.err.println("Warning: the .ork flight configuration has no resolved motor. "
-                    + "CG and the simulation will not include propellant.");
-            return;
-        }
-        if (!requestedMotor.startsWith(mountedDesignation)) {
-            System.err.println("Warning: requested motor " + requestedMotor
-                    + " does not match the motor mounted in the .ork (" + mountedDesignation
-                    + "). OpenRocket will simulate the mounted motor.");
         }
     }
 
@@ -251,8 +241,9 @@ public class App {
         }
     }
 
-    private static void applyFlightResult(OptimisationReport report, RocketAnalysis.FlightResult flight,
-                                          boolean baseline) {
+    private static void applyEnsemble(OptimisationReport report, RocketAnalysis.Ensemble ensemble,
+                                      boolean baseline) {
+        RocketAnalysis.FlightResult flight = ensemble.average;
         if (baseline) {
             report.baselineApogee = flight.apogee;
             report.baselineTimeToApogee = flight.timeToApogee;
@@ -260,8 +251,9 @@ public class App {
             report.baselineMaxAcceleration = flight.maxAcceleration;
             report.baselineLaunchRodVelocity = flight.launchRodVelocity;
             report.baselineFlightTime = flight.flightTime;
-            report.baselineMinFlightStabilityCalibres = flight.minStabilityCalibres;
-            report.baselineMaxFlightStabilityCalibres = flight.maxStabilityCalibres;
+            report.baselineMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
+            report.baselineMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
+            report.baselineWindCases = ensemble.caseLines;
         } else {
             report.optimisedApogee = flight.apogee;
             report.optimisedTimeToApogee = flight.timeToApogee;
@@ -269,8 +261,9 @@ public class App {
             report.optimisedMaxAcceleration = flight.maxAcceleration;
             report.optimisedLaunchRodVelocity = flight.launchRodVelocity;
             report.optimisedFlightTime = flight.flightTime;
-            report.optimisedMinFlightStabilityCalibres = flight.minStabilityCalibres;
-            report.optimisedMaxFlightStabilityCalibres = flight.maxStabilityCalibres;
+            report.optimisedMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
+            report.optimisedMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
+            report.optimisedWindCases = ensemble.caseLines;
         }
     }
     

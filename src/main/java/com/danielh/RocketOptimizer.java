@@ -22,13 +22,16 @@ public class RocketOptimizer {
     private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.05);
     
     private static String rocketFilePath;
+    private static MotorCatalogue.Selection motor;
     
     public static OptimisationReport optimise(int populationSize, int generations, String rocketPath,
                                                double baselineNose, double baselineBody,
                                                double baselineRootChord, double baselineTipChord,
-                                               double baselineHeight, double baselineSweepLength) {
+                                               double baselineHeight, double baselineSweepLength,
+                                               MotorCatalogue.Selection selectedMotor) {
         long startTime = System.currentTimeMillis();
         rocketFilePath = rocketPath;
+        motor = selectedMotor;
         
         try {
             OpenRocketDocument document = loadRocket(new File(rocketPath));
@@ -134,6 +137,7 @@ public class RocketOptimizer {
         try {
             Rocket rocket = reloadRocket();
             if (rocket == null) return 1000.0;
+            MotorCatalogue.mount(rocket, motor);
             
             setNoseConeLength(rocket, genotype.get(0).get(0).allele());
             setBodyTubeLength(rocket, genotype.get(1).get(0).allele());
@@ -141,38 +145,18 @@ public class RocketOptimizer {
                 genotype.get(2).get(0).allele(), genotype.get(3).get(0).allele(),
                 genotype.get(4).get(0).allele(), genotype.get(5).get(0).allele());
             
-            RocketAnalysis.FlightResult flight = RocketAnalysis.simulate(rocket);
-            if (flight == null) return 1000.0;
-
-            double penalizedApogee = calculatePenalizedApogee(rocket, flight.apogee);
-            
-            return -penalizedApogee;
+            RocketAnalysis.Ensemble ensemble = RocketAnalysis.flyAllWinds(rocket);
+            double meanApogee = ensemble.average.apogee;
+            if (Double.isNaN(meanApogee)) {
+                return 1000.0;
+            }
+            return -meanApogee;
         } catch (Exception e) {
             return 1000.0;
         } finally {
             System.setOut(ORIGINAL_OUT);
             System.setErr(ORIGINAL_ERR);
         }
-    }
-    
-    private static double calculatePenalizedApogee(Rocket rocket, double apogee) {
-        double stabilityMargin = RocketAnalysis.launchStabilityCalibres(rocket);
-
-        double penalty = 0.0;
-        if (Double.isNaN(stabilityMargin)) {
-            return 0.0;
-        }
-
-        if (stabilityMargin >= 2.0) {
-            penalty = 0.0;
-        } else if (stabilityMargin > 0.0) {
-            double marginBelowThreshold = 2.0 - stabilityMargin;
-            penalty = 1.0 - Math.exp(-marginBelowThreshold);
-        } else {
-            penalty = 1.0;
-        }
-        
-        return apogee * (1.0 - penalty);
     }
     
     private static Rocket reloadRocket() {

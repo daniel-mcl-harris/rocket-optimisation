@@ -59,6 +59,10 @@ public class OptimisationReport {
     
     // Caliber (body tube diameter)
     public double caliber;
+
+    public String motorDescription;
+    public String[] baselineWindCases;
+    public String[] optimisedWindCases;
     
     // Component CG breakdowns
     public String[] baselineComponentCG;
@@ -88,6 +92,10 @@ public class OptimisationReport {
         long minutes = (totalSeconds % 3600) / 60;
         long seconds = totalSeconds % 60;
         System.out.println(String.format("  Execution Time:         %02d:%02d:%02d", hours, minutes, seconds));
+        if (motorDescription != null) {
+            System.out.println("  Motor:                  " + motorDescription);
+        }
+        System.out.println("  Wind cases:             " + WindCases.summary());
         
         System.out.println("\n[BASE DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", baselineNoseCone));
@@ -112,15 +120,16 @@ public class OptimisationReport {
         double baseSMAbsolute = baselineCenterOfPressure - baselineCenterOfGravity;
         System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
             baseSMAbsolute, baselineStabilityMarginCalibres));
-        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres",
+        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
             baselineMinFlightStabilityCalibres, baselineMaxFlightStabilityCalibres));
-        System.out.println("\n  Flight Performance:");
-        System.out.println(String.format("  Apogee:                 %.2f m", baselineApogee));
+        System.out.println("\n  Flight Performance (mean of the wind cases):");
+        System.out.println(String.format("  Mean apogee (fitness):  %.2f m", baselineApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
         System.out.println(String.format("  Flight Time:            %.2f s", baselineFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", baselineMaxAcceleration));
         System.out.println(String.format("  Velocity off Rod:       %.2f m/s", baselineLaunchRodVelocity));
+        printWindCases(baselineWindCases);
         
         System.out.println("\n[OPTIMISED DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimisedNoseCone));
@@ -145,15 +154,16 @@ public class OptimisationReport {
         double optSMAbsolute = optimisedCenterOfPressure - optimisedCenterOfGravity;
         System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
             optSMAbsolute, optimisedStabilityMarginCalibres));
-        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres",
+        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
             optimisedMinFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres));
-        System.out.println("\n  Flight Performance:");
-        System.out.println(String.format("  Apogee:                 %.2f m", optimisedApogee));
+        System.out.println("\n  Flight Performance (mean of the wind cases):");
+        System.out.println(String.format("  Mean apogee (fitness):  %.2f m", optimisedApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
         System.out.println(String.format("  Flight Time:            %.2f s", optimisedFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", optimisedMaxAcceleration));
         System.out.println(String.format("  Velocity off Rod:       %.2f m/s", optimisedLaunchRodVelocity));
+        printWindCases(optimisedWindCases);
         
         // Calculate improvements
         double apogeeImprovement = optimisedApogee - baselineApogee;
@@ -162,19 +172,36 @@ public class OptimisationReport {
         double velocityImprovementPercent = (velocityImprovement / baselineMaxVelocity) * 100.0;
         
         System.out.println("\n[PERFORMANCE IMPROVEMENTS]");
-        System.out.println(String.format("  Apogee:                 %+.2f m (%+.1f%%)", 
+        System.out.println(String.format("  Mean apogee (fitness):  %+.2f m (%+.1f%%)",
             apogeeImprovement, apogeeImprovementPercent));
         System.out.println(String.format("  Max Velocity:           %+.2f m/s (%+.1f%%)", 
             velocityImprovement, velocityImprovementPercent));
+
+        java.util.List<String> stabilityWarnings = FlightFitness.stabilityWarnings(
+                optimisedStabilityMarginCalibres,
+                optimisedMinFlightStabilityCalibres,
+                optimisedMaxFlightStabilityCalibres);
+        if (!stabilityWarnings.isEmpty()) {
+            System.out.println("\n  WARNING: stability is outside 1 to 6 calibres. It is not part of the score.");
+            for (String warning : stabilityWarnings) {
+                System.out.println("  " + warning);
+            }
+        }
         
         System.out.println("\n" + "=".repeat(70));
         
-        // Verdict
-        if (apogeeImprovement > 0) {
-            System.out.print("                      OPTIMISATION SUCCESSFUL\n");
-        } else {
-            System.out.println("                        OPTIMISATION FAILED\n");
-        }
+        String verdict = FlightFitness.verdict(baselineApogee, optimisedApogee);
+        int pad = Math.max(0, (70 - verdict.length()) / 2);
+        System.out.println(" ".repeat(pad) + verdict);
         System.out.println("=".repeat(70) + "\n");
+    }
+
+    private static void printWindCases(String[] lines) {
+        if (lines == null) {
+            return;
+        }
+        for (String line : lines) {
+            System.out.println(line);
+        }
     }
 }
