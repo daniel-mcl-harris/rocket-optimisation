@@ -22,13 +22,16 @@ public class RocketOptimizer {
     private static final DoubleRange FIN_SWEEP_LENGTH_RANGE = DoubleRange.of(0.0, 0.05);
     
     private static String rocketFilePath;
+    private static MotorCatalogue.Selection motor;
     
     public static OptimisationReport optimise(int populationSize, int generations, String rocketPath,
                                                double baselineNose, double baselineBody,
                                                double baselineRootChord, double baselineTipChord,
-                                               double baselineHeight, double baselineSweepLength) {
+                                               double baselineHeight, double baselineSweepLength,
+                                               MotorCatalogue.Selection selectedMotor) {
         long startTime = System.currentTimeMillis();
         rocketFilePath = rocketPath;
+        motor = selectedMotor;
         
         try {
             OpenRocketDocument document = loadRocket(new File(rocketPath));
@@ -134,6 +137,7 @@ public class RocketOptimizer {
         try {
             Rocket rocket = reloadRocket();
             if (rocket == null) return 1000.0;
+            MotorCatalogue.mount(rocket, motor);
             
             setNoseConeLength(rocket, genotype.get(0).get(0).allele());
             setBodyTubeLength(rocket, genotype.get(1).get(0).allele());
@@ -141,10 +145,9 @@ public class RocketOptimizer {
                 genotype.get(2).get(0).allele(), genotype.get(3).get(0).allele(),
                 genotype.get(4).get(0).allele(), genotype.get(5).get(0).allele());
             
-            RocketAnalysis.FlightResult flight = RocketAnalysis.simulate(rocket);
-            if (flight == null) return 1000.0;
-
-            double penalizedApogee = calculatePenalizedApogee(rocket, flight.apogee);
+            RocketAnalysis.Ensemble ensemble = RocketAnalysis.flyAllWinds(rocket);
+            double margin = stabilityMargin(rocket, ensemble);
+            double penalizedApogee = penalize(ensemble.average.apogee, margin);
             
             return -penalizedApogee;
         } catch (Exception e) {
@@ -155,14 +158,28 @@ public class RocketOptimizer {
         }
     }
     
-    private static double calculatePenalizedApogee(Rocket rocket, double apogee) {
-        double stabilityMargin = RocketAnalysis.launchStabilityCalibres(rocket);
+    /**
+     * Static Barrowman margin, and the worst in-flight margin across the wind
+     * cases. Weathercocking under the breezy case can pull the in-flight value
+     * below the static one; the penalty uses whichever is smaller.
+     */
+    private static double stabilityMargin(Rocket rocket, RocketAnalysis.Ensemble ensemble) {
+        double margin = RocketAnalysis.launchStabilityCalibres(rocket);
+        double inFlight = ensemble.minimumInFlightStability;
+        if (Double.isNaN(inFlight)) {
+            return margin;
+        }
+        if (Double.isNaN(margin)) {
+            return inFlight;
+        }
+        return Math.min(margin, inFlight);
+    }
 
-        double penalty = 0.0;
-        if (Double.isNaN(stabilityMargin)) {
+    private static double penalize(double apogee, double stabilityMargin) {
+        if (Double.isNaN(apogee) || Double.isNaN(stabilityMargin)) {
             return 0.0;
         }
-
+        double penalty;
         if (stabilityMargin >= 2.0) {
             penalty = 0.0;
         } else if (stabilityMargin > 0.0) {
@@ -171,7 +188,6 @@ public class RocketOptimizer {
         } else {
             penalty = 1.0;
         }
-        
         return apogee * (1.0 - penalty);
     }
     

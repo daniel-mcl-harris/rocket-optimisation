@@ -59,6 +59,13 @@ public class OptimisationReport {
     
     // Caliber (body tube diameter)
     public double caliber;
+
+    public String motorDescription;
+    public String[] baselineWindCases;
+    public String[] optimisedWindCases;
+
+    /** Apogee differences inside this band are treated as unchanged, not a failure. */
+    public static final double APOGEE_NOISE_METRES = 1.0;
     
     // Component CG breakdowns
     public String[] baselineComponentCG;
@@ -88,6 +95,10 @@ public class OptimisationReport {
         long minutes = (totalSeconds % 3600) / 60;
         long seconds = totalSeconds % 60;
         System.out.println(String.format("  Execution Time:         %02d:%02d:%02d", hours, minutes, seconds));
+        if (motorDescription != null) {
+            System.out.println("  Motor:                  " + motorDescription);
+        }
+        System.out.println("  Wind cases:             " + WindCases.summary());
         
         System.out.println("\n[BASE DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", baselineNoseCone));
@@ -112,15 +123,16 @@ public class OptimisationReport {
         double baseSMAbsolute = baselineCenterOfPressure - baselineCenterOfGravity;
         System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
             baseSMAbsolute, baselineStabilityMarginCalibres));
-        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres",
+        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
             baselineMinFlightStabilityCalibres, baselineMaxFlightStabilityCalibres));
-        System.out.println("\n  Flight Performance:");
+        System.out.println("\n  Flight Performance (mean of the wind cases):");
         System.out.println(String.format("  Apogee:                 %.2f m", baselineApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
         System.out.println(String.format("  Flight Time:            %.2f s", baselineFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", baselineMaxAcceleration));
         System.out.println(String.format("  Velocity off Rod:       %.2f m/s", baselineLaunchRodVelocity));
+        printWindCases(baselineWindCases);
         
         System.out.println("\n[OPTIMISED DESIGN]");
         System.out.println(String.format("  Nose Cone Length:       %.4f m", optimisedNoseCone));
@@ -145,15 +157,16 @@ public class OptimisationReport {
         double optSMAbsolute = optimisedCenterOfPressure - optimisedCenterOfGravity;
         System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
             optSMAbsolute, optimisedStabilityMarginCalibres));
-        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres",
+        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
             optimisedMinFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres));
-        System.out.println("\n  Flight Performance:");
+        System.out.println("\n  Flight Performance (mean of the wind cases):");
         System.out.println(String.format("  Apogee:                 %.2f m", optimisedApogee));
         System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
         System.out.println(String.format("  Flight Time:            %.2f s", optimisedFlightTime));
         System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
         System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", optimisedMaxAcceleration));
         System.out.println(String.format("  Velocity off Rod:       %.2f m/s", optimisedLaunchRodVelocity));
+        printWindCases(optimisedWindCases);
         
         // Calculate improvements
         double apogeeImprovement = optimisedApogee - baselineApogee;
@@ -169,12 +182,23 @@ public class OptimisationReport {
         
         System.out.println("\n" + "=".repeat(70));
         
-        // Verdict
-        if (apogeeImprovement > 0) {
+        // Differences of a metre or less are wind/numerical noise, not a result.
+        if (apogeeImprovement > APOGEE_NOISE_METRES) {
             System.out.print("                      OPTIMISATION SUCCESSFUL\n");
+        } else if (apogeeImprovement >= -APOGEE_NOISE_METRES) {
+            System.out.println("                    NO SIGNIFICANT CHANGE\n");
         } else {
             System.out.println("                        OPTIMISATION FAILED\n");
         }
         System.out.println("=".repeat(70) + "\n");
+    }
+
+    private static void printWindCases(String[] lines) {
+        if (lines == null) {
+            return;
+        }
+        for (String line : lines) {
+            System.out.println(line);
+        }
     }
 }
