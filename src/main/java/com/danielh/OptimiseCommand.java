@@ -9,7 +9,7 @@ import java.util.List;
  */
 public final class OptimiseCommand {
 
-    public static final String DEFAULT_MOTOR = "I350R-0";
+    public static final String DEFAULT_MOTOR = "I350R";
     public static final int DEFAULT_POPULATION = 50;
     public static final int DEFAULT_GENERATIONS = 100;
 

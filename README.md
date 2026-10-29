@@ -15,7 +15,7 @@ optimise [motor] [--pop <population>] [--gens <generations>]
 
 | Argument | Type | Default | What it does |
 |---|---|---|---|
-| `motor` | text | `I350R-0` | First word that is not an option. Looked up in OpenRocket's motor database and mounted for the whole run, replacing the motor saved in the `.ork`. |
+| `motor` | text | `I350R` | First word that is not an option. Looked up in OpenRocket's motor database and mounted for the whole run, replacing the motor saved in the `.ork`. |
 | `population` or `--pop` | positive integer | `50` | Jenetics population size. |
 | `generations` or `--gens` | positive integer | `100` | Number of generations. |
 
@@ -28,13 +28,13 @@ Population and generations are independent. Give both, either, or neither. A sin
 `run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator. It drops a few JDK warning lines (`sun.misc.Unsafe`, final-field mutation, and similar). Maven's own output, including errors, is left visible. If Maven or Java fails, the script exits with that program's code.
 
 ```powershell
-./run.ps1 optimise I350R-0 50 100
+./run.ps1 optimise I350R 50 100
 ```
 
 Quick check:
 
 ```powershell
-./run.ps1 optimise I350R-0 3 1
+./run.ps1 optimise I350R 3 1
 ```
 
 Motor only, leaving population and generations at 50 and 100:
@@ -43,7 +43,7 @@ Motor only, leaving population and generations at 50 and 100:
 ./run.ps1 optimise H128W-6
 ```
 
-Defaults for everything (`I350R-0`, population 50, generations 100):
+Defaults for everything (`I350R`, population 50, generations 100):
 
 ```powershell
 ./run.ps1 optimise
@@ -52,7 +52,7 @@ Defaults for everything (`I350R-0`, population 50, generations 100):
 Population 50, but only 5 generations:
 
 ```powershell
-./run.ps1 optimise I350R-0 --gens 5
+./run.ps1 optimise I350R --gens 5
 ```
 
 ### Unix
@@ -60,7 +60,7 @@ Population 50, but only 5 generations:
 `run.sh` is the same sequence as `run.ps1`, with `:` in the classpath. Maven and Java errors stay on the terminal, and a non-zero exit from either command is the script's exit code.
 
 ```bash
-./run.sh optimise I350R-0 50 100
+./run.sh optimise I350R 50 100
 ./run.sh optimise H128W-6 --pop 10 --gens 5
 ```
 
@@ -69,7 +69,7 @@ Population 50, but only 5 generations:
 The same entry point, without the PowerShell wrapper. This is the form that works in bash. On PowerShell, prefer `run.ps1`, because `-Dexec.args=...` is easy to split on spaces.
 
 ```bash
-mvn -q compile exec:java -Dexec.args="optimise I350R-0 50 100"
+mvn -q compile exec:java -Dexec.args="optimise I350R 50 100"
 ```
 
 Or compile once and launch Java directly. The classpath separator is `:` on Linux and macOS, and `;` on Windows (which is what `run.ps1` uses).
@@ -78,7 +78,7 @@ Or compile once and launch Java directly. The classpath separator is `:` on Linu
 mvn -q compile dependency:copy-dependencies
 java --add-opens java.base/java.lang=ALL-UNNAMED \
   -cp "target/classes:target/dependency/*" \
-  com.danielh.App optimise I350R-0 3 1
+  com.danielh.App optimise I350R 3 1
 ```
 
 `mvn package` also builds `target/rocket-app.jar`. `target/` is build output and is not part of the repository. OpenRocket does not need to be built from source.
@@ -91,14 +91,13 @@ The name is matched to a designation or common name in the bundled thrust-curve 
 
 | Example | Meaning |
 |---|---|
-| `I350R-0` | Designation `I350R`, ejection delay 0 seconds (at burnout). |
-| `I350R-6` | Same motor, 6 second delay, when that delay is within 0.05 s of a listed delay. |
-| `I350R-P` or `I350R-plugged` | Plugged: no ejection charge. |
-| `I350R` | No delay in the name. The shortest listed delay is used. If the curve only lists plugged, that is what flies. For the bundled I350R curve that is plugged. |
-| `AeroTech/I350R-0` | Manufacturer, a slash, then the designation and delay. Matching ignores case and punctuation in the manufacturer name. |
-| `AeroTech I350R-0` | Same idea, with a space before the designation. |
+| `I350R-P` or `I350R-plugged` | Plugged: no ejection charge. This is the only delay the bundled AeroTech I350R curve lists. |
+| `I350R` | No delay in the name. The shortest listed delay is used. For the bundled I350R curve that is plugged, the same flight as `I350R-P`. |
+| `H128W-6` | A numeric delay that is on that curve (within 0.05 s of a listed delay). |
+| `AeroTech/I350R` | Manufacturer, a slash, then the designation. Matching ignores case and punctuation in the manufacturer name. |
+| `AeroTech I350R-P` | Same idea, with a space before the designation. |
 
-A delay written as a number is still mounted when that exact delay is not on the curve. `I350R-0` is the important case: the bundled AeroTech curve lists only plugged, and 0 is still installed so the file's burnout ejection is kept. Several curves that share one manufacturer, designation, and diameter resolve to the one with the greatest launch mass.
+A typed delay that is not in the curve's standard delays is rejected. The run exits 1 and lists those delays and the names that work. `I350R-0` does this: the bundled curve lists only `P`, and the message says to use `I350R-P` or bare `I350R`. Several curves that share one manufacturer, designation, and diameter resolve to the one with the greatest launch mass.
 
 There is no command that lists the database. To find a name, try a designation. An unknown name stops the run with exit code 1, prints an example of the accepted form, and lists up to eight close matches (edit distance up to 2, or a designation that contains the text you typed), each with manufacturer and delays. If nothing is close, the list says `none`.
 
@@ -108,7 +107,7 @@ A motor wider than the mount by more than 2 mm prints a warning and is still ins
 
 ### Population and generations
 
-`optimise I350R-0 10` sets the population to 10 and leaves generations at 100. `optimise I350R-0 --gens 5` leaves the population at 50 and runs 5 generations. `optimise I350R-0 10 5` sets both, and so does `optimise I350R-0 --pop 10 --gens 5`.
+`optimise I350R 10` sets the population to 10 and leaves generations at 100. `optimise I350R --gens 5` leaves the population at 50 and runs 5 generations. `optimise I350R 10 5` sets both, and so does `optimise I350R --pop 10 --gens 5`.
 
 A value that is not a positive integer (letters, zero, or a negative number) prints the usage hint and exits 1. The run does not fall back to the defaults.
 

@@ -12,7 +12,7 @@ public class OptimiseCommandTest {
     public void unknownCommandPrintsUsage() {
         assertUsage(new String[] {"optimize"});
         assertUsage(new String[] {});
-        assertUsage(new String[] {"fly", "I350R-0"});
+        assertUsage(new String[] {"fly", "I350R"});
         try {
             OptimiseCommand.parse(new String[] {"optimize"});
             fail("expected usage");
@@ -24,7 +24,7 @@ public class OptimiseCommandTest {
     @Test
     public void populationAndGenerationsAreIndependent() {
         OptimiseCommand.Args defaults = OptimiseCommand.parse(new String[] {"optimise"});
-        assertEquals("I350R-0", defaults.motor);
+        assertEquals("I350R", defaults.motor);
         assertEquals(50, defaults.population);
         assertEquals(100, defaults.generations);
 
@@ -48,7 +48,7 @@ public class OptimiseCommandTest {
         assertEquals(5, generationsOnly.generations);
 
         OptimiseCommand.Args named = OptimiseCommand.parse(new String[] {"optimise", "--pop", "8", "--gens=3"});
-        assertEquals("I350R-0", named.motor);
+        assertEquals("I350R", named.motor);
         assertEquals(8, named.population);
         assertEquals(3, named.generations);
 
@@ -60,16 +60,16 @@ public class OptimiseCommandTest {
 
     @Test
     public void nonPositiveCountsExitAsUsage() {
-        assertUsage(new String[] {"optimise", "I350R-0", "abc"});
-        assertUsage(new String[] {"optimise", "I350R-0", "10", "nope"});
-        assertUsage(new String[] {"optimise", "I350R-0", "0", "5"});
-        assertUsage(new String[] {"optimise", "I350R-0", "-3", "5"});
-        assertUsage(new String[] {"optimise", "I350R-0", "10", "0"});
+        assertUsage(new String[] {"optimise", "I350R", "abc"});
+        assertUsage(new String[] {"optimise", "I350R", "10", "nope"});
+        assertUsage(new String[] {"optimise", "I350R", "0", "5"});
+        assertUsage(new String[] {"optimise", "I350R", "-3", "5"});
+        assertUsage(new String[] {"optimise", "I350R", "10", "0"});
         assertUsage(new String[] {"optimise", "--pop", "0"});
         assertUsage(new String[] {"optimise", "--gens", "-1"});
         assertUsage(new String[] {"optimise", "--pop"});
         assertUsage(new String[] {"optimise", "--wind", "3"});
-        assertUsage(new String[] {"optimise", "I350R-0", "10", "5", "--pop", "8"});
+        assertUsage(new String[] {"optimise", "I350R", "10", "5", "--pop", "8"});
     }
 
     private static void assertUsage(String[] args) {

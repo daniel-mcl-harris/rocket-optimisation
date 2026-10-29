@@ -25,22 +25,46 @@ public class MotorAndWindTest {
     }
 
     @Test
-    public void selectsI350RWithZeroDelay() {
-        MotorCatalogue.Selection selection = MotorCatalogue.select("I350R-0");
-        assertEquals("I350R", selection.motor.getDesignation());
-        assertEquals("AeroTech", selection.motor.getManufacturer().getSimpleName());
-        assertEquals(0.0, selection.ejectionDelaySeconds, 0.0);
-        assertTrue(selection.describe().contains("I350R-0"));
-
-        MotorCatalogue.Selection prefixed = MotorCatalogue.select("aerotech/i350r-0");
-        assertEquals(selection.motor.getDigest(), prefixed.motor.getDigest());
+    public void unlistedDelayIsRejected() {
+        try {
+            MotorCatalogue.select("I350R-0");
+            fail("expected a lookup error");
+        } catch (MotorCatalogue.MotorLookupException e) {
+            assertTrue(e.getMessage().contains("I350R-0"));
+            assertTrue(e.getMessage().contains("delays: P"));
+            assertTrue(e.getMessage().contains("I350R-P"));
+            assertTrue(e.getMessage().contains("I350R"));
+        }
     }
 
     @Test
-    public void omittedDelayUsesTheShortestListedDelay() {
-        MotorCatalogue.Selection selection = MotorCatalogue.select("I350R");
-        assertEquals("I350R", selection.motor.getDesignation());
-        assertEquals(Motor.PLUGGED_DELAY, selection.ejectionDelaySeconds, 0.0);
+    public void pluggedAndBareI350RMountPlugged() {
+        MotorCatalogue.Selection plugged = MotorCatalogue.select("I350R-P");
+        MotorCatalogue.Selection bare = MotorCatalogue.select("I350R");
+        assertEquals("I350R", plugged.motor.getDesignation());
+        assertEquals("AeroTech", plugged.motor.getManufacturer().getSimpleName());
+        assertEquals(Motor.PLUGGED_DELAY, plugged.ejectionDelaySeconds, 0.0);
+        assertEquals(Motor.PLUGGED_DELAY, bare.ejectionDelaySeconds, 0.0);
+        assertEquals(plugged.motor.getDigest(), bare.motor.getDigest());
+        assertTrue(plugged.describe().contains("I350R-P"));
+
+        MotorCatalogue.Selection prefixed = MotorCatalogue.select("aerotech/i350r-P");
+        assertEquals(plugged.motor.getDigest(), prefixed.motor.getDigest());
+        assertEquals(Motor.PLUGGED_DELAY, prefixed.ejectionDelaySeconds, 0.0);
+    }
+
+    @Test
+    public void listedNumericDelayIsMounted() {
+        MotorCatalogue.Selection selection = MotorCatalogue.select("H128W-6");
+        assertEquals("H128W", selection.motor.getDesignation());
+        assertEquals(6.0, selection.ejectionDelaySeconds, 0.0);
+        boolean listed = false;
+        for (double delay : selection.motor.getStandardDelays()) {
+            if (delay == 6.0) {
+                listed = true;
+            }
+        }
+        assertTrue(listed);
     }
 
     @Test
@@ -71,7 +95,7 @@ public class MotorAndWindTest {
     public void mountedMotorChangesMassAndIsSaved() throws Exception {
         OpenRocketDocument document = new GeneralRocketLoader(new File("rockets", "GA_base_rocket.ork")).load();
         Rocket original = document.getRocket();
-        MotorCatalogue.Selection heavy = MotorCatalogue.select("I350R-0");
+        MotorCatalogue.Selection heavy = MotorCatalogue.select("I350R");
         MotorCatalogue.mount(original, heavy);
         RocketAnalysis.MassProperties heavyMass = RocketAnalysis.massProperties(original);
         assertEquals("I350R", heavyMass.motorDesignation);
@@ -98,7 +122,7 @@ public class MotorAndWindTest {
     @Test
     public void windEnsembleIsRepeatableAndReportsTheWorstCase() throws Exception {
         Rocket rocket = loadBase();
-        MotorCatalogue.mount(rocket, MotorCatalogue.select("I350R-0"));
+        MotorCatalogue.mount(rocket, MotorCatalogue.select("I350R"));
 
         RocketAnalysis.Ensemble first = RocketAnalysis.flyAllWinds(rocket);
         RocketAnalysis.Ensemble second = RocketAnalysis.flyAllWinds(rocket);

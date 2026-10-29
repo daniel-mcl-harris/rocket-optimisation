@@ -55,7 +55,7 @@ public final class MotorCatalogue {
 
     public static Selection select(String requested) {
         if (requested == null || requested.isBlank()) {
-            throw new MotorLookupException("Motor name is missing. Example: I350R-0 or AeroTech/I350R-0");
+            throw new MotorLookupException("Motor name is missing. Example: I350R or AeroTech/I350R-P");
         }
         Parsed parsed = parse(requested.trim());
         List<ThrustCurveMotor> matches = exactMatches(parsed.designation, parsed.manufacturer);
@@ -72,12 +72,10 @@ public final class MotorCatalogue {
 
         if (parsed.delaySpecified) {
             List<ThrustCurveMotor> withDelay = filterDelay(matches, parsed.delay);
-            // A delay that is not on the thrust curve is still usable. OpenRocket
-            // will eject at that time. I350R-0 is this case: the bundled curve
-            // lists only a plugged delay, and the base rocket asks for 0.
-            if (!withDelay.isEmpty()) {
-                matches = withDelay;
+            if (withDelay.isEmpty()) {
+                throw new MotorLookupException(unlistedDelay(requested, matches));
             }
+            matches = withDelay;
         }
 
         Map<String, List<ThrustCurveMotor>> groups = group(matches);
@@ -86,7 +84,7 @@ public final class MotorCatalogue {
         }
 
         ThrustCurveMotor motor = heaviest(matches);
-        double delay = parsed.delaySpecified ? parsed.delay : defaultDelay(motor);
+        double delay = parsed.delaySpecified ? canonicalDelay(motor, parsed.delay) : defaultDelay(motor);
         return new Selection(motor, delay, requested.trim());
     }
 
@@ -199,6 +197,43 @@ public final class MotorCatalogue {
         return 0.0;
     }
 
+    private static double canonicalDelay(ThrustCurveMotor motor, double requested) {
+        for (double listed : motor.getStandardDelays()) {
+            if (sameDelay(listed, requested)) {
+                return listed;
+            }
+        }
+        return requested;
+    }
+
+    private static String unlistedDelay(String requested, List<ThrustCurveMotor> motors) {
+        StringBuilder message = new StringBuilder();
+        message.append('\'').append(requested).append("' is not a listed delay.\n");
+        for (List<ThrustCurveMotor> group : group(motors).values()) {
+            ThrustCurveMotor motor = heaviest(group);
+            message.append(motor.getManufacturer().getSimpleName()).append(' ')
+                    .append(motor.getDesignation())
+                    .append(" delays: ").append(delayList(motor)).append('\n');
+            message.append("Valid names: ").append(validNames(motor)).append('\n');
+        }
+        return message.toString().stripTrailing();
+    }
+
+    private static String validNames(ThrustCurveMotor motor) {
+        StringBuilder text = new StringBuilder();
+        for (double delay : motor.getStandardDelays()) {
+            if (text.length() > 0) {
+                text.append(", ");
+            }
+            text.append(motor.getDesignation()).append('-').append(ThrustCurveMotor.getDelayString(delay));
+        }
+        if (text.length() > 0) {
+            text.append(", ");
+        }
+        text.append(motor.getDesignation());
+        return text.toString();
+    }
+
     private static Map<String, List<ThrustCurveMotor>> group(List<ThrustCurveMotor> motors) {
         Map<String, List<ThrustCurveMotor>> groups = new LinkedHashMap<>();
         for (ThrustCurveMotor motor : motors) {
@@ -220,8 +255,8 @@ public final class MotorCatalogue {
     private static String notFound(String requested, String designation) {
         StringBuilder message = new StringBuilder();
         message.append("No motor matches '").append(requested).append("'.\n");
-        message.append("Use a designation such as I350R-0, an optional delay (I350R-6 or I350R-P),\n");
-        message.append("and an optional manufacturer (AeroTech/I350R-0).\n");
+        message.append("Use a designation such as I350R, an optional listed delay (H128W-6 or I350R-P),\n");
+        message.append("and an optional manufacturer (AeroTech/I350R).\n");
         message.append("Close matches:\n");
         List<String> close = closeMatches(designation);
         if (close.isEmpty()) {
@@ -237,7 +272,7 @@ public final class MotorCatalogue {
     private static String ambiguous(String requested, Map<String, List<ThrustCurveMotor>> groups) {
         StringBuilder message = new StringBuilder();
         message.append('\'').append(requested).append("' matches more than one motor. ");
-        message.append("Add the manufacturer, for example 'AeroTech/I350R-0'.\n");
+        message.append("Add the manufacturer, for example 'AeroTech/I350R'.\n");
         for (String line : describeGroups(groups)) {
             message.append("  ").append(line).append('\n');
         }
