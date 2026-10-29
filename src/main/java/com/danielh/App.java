@@ -68,12 +68,7 @@ public class App {
                 return;
             }
             
-            report.baselineNoseCone = baselineNose;
-            report.baselineBodyTube = baselineBody;
-            report.baselineFinRootChord = baselineRootChord;
-            report.baselineFinTipChord = baselineTipChord;
-            report.baselineFinHeight = baselineHeight;
-            report.baselineFinSweepLength = baselineSweep;
+            readGeometry(baselineRocket, report, true);
             report.motorDescription = motor.describe();
             RocketAnalysis.MassProperties baselineMass = RocketAnalysis.massProperties(baselineRocket);
             applyMassProperties(report, baselineMass, true);
@@ -94,6 +89,7 @@ public class App {
             setComponentLength(optimisedRocket, BodyTube.class, report.optimisedBodyTube);
             setFinParameters(optimisedRocket, report.optimisedFinRootChord, 
                 report.optimisedFinTipChord, report.optimisedFinHeight, report.optimisedFinSweepLength);
+            readGeometry(optimisedRocket, report, false);
             
             RocketAnalysis.Ensemble optimisedResult = runEnsemble(optimisedRocket);
             if (optimisedResult != null) {
@@ -129,6 +125,30 @@ public class App {
         }
     }
     
+    private static void readGeometry(Rocket rocket, OptimisationReport report, boolean baseline) {
+        double nose = getComponentLength(rocket, NoseCone.class);
+        double body = getComponentLength(rocket, BodyTube.class);
+        double root = getFinParameter(rocket, "getRootChord");
+        double tip = getFinParameter(rocket, "getTipChord");
+        double height = getFinParameter(rocket, "getHeight");
+        double sweep = getFinParameter(rocket, "getSweep");
+        if (baseline) {
+            report.baselineNoseCone = nose;
+            report.baselineBodyTube = body;
+            report.baselineFinRootChord = root;
+            report.baselineFinTipChord = tip;
+            report.baselineFinHeight = height;
+            report.baselineFinSweepLength = sweep;
+        } else {
+            report.optimisedNoseCone = nose;
+            report.optimisedBodyTube = body;
+            report.optimisedFinRootChord = root;
+            report.optimisedFinTipChord = tip;
+            report.optimisedFinHeight = height;
+            report.optimisedFinSweepLength = sweep;
+        }
+    }
+
     private static double getComponentLength(Rocket rocket, Class<?> componentType) {
         for (RocketComponent child : rocket.getChildren()) {
             for (RocketComponent subchild : child.getChildren()) {
@@ -247,9 +267,12 @@ public class App {
             report.baselineMaxAcceleration = flight.maxAcceleration;
             report.baselineLaunchRodVelocity = flight.launchRodVelocity;
             report.baselineFlightTime = flight.flightTime;
+            report.baselineMaxMach = flight.maxMach;
             report.baselineMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.baselineMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
             report.baselineWindCases = ensemble.caseLines;
+            report.baselineRejected = ensemble.rejected;
+            report.baselineRejectionReason = ensemble.rejectionReason;
         } else {
             report.optimisedApogee = flight.apogee;
             report.optimisedTimeToApogee = flight.timeToApogee;
@@ -257,9 +280,12 @@ public class App {
             report.optimisedMaxAcceleration = flight.maxAcceleration;
             report.optimisedLaunchRodVelocity = flight.launchRodVelocity;
             report.optimisedFlightTime = flight.flightTime;
+            report.optimisedMaxMach = flight.maxMach;
             report.optimisedMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.optimisedMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
             report.optimisedWindCases = ensemble.caseLines;
+            report.optimisedRejected = ensemble.rejected;
+            report.optimisedRejectionReason = ensemble.rejectionReason;
         }
     }
     

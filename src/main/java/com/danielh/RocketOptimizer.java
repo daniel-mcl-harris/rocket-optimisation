@@ -6,8 +6,10 @@ import io.jenetics.util.DoubleRange;
 import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.document.OpenRocketDocument;
 import info.openrocket.core.file.GeneralRocketLoader;
-import me.tongfei.progressbar.ProgressBar;
 import java.io.File;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RocketOptimizer {
     
@@ -23,6 +25,8 @@ public class RocketOptimizer {
     
     private static String rocketFilePath;
     private static MotorCatalogue.Selection motor;
+    private static final AtomicInteger rejectedEvaluations = new AtomicInteger();
+    private static volatile boolean countRejections;
     
     public static OptimisationReport optimise(int populationSize, int generations, String rocketPath,
                                                double baselineNose, double baselineBody,
@@ -69,7 +73,6 @@ public class RocketOptimizer {
         System.out.println("\n=== ROCKET DESIGN OPTIMISATION ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
         System.out.println("Optimising: Nose Cone, Body Tube, Fin Parameters");
-        System.out.println("--------------------------------------------------------------------------");
         
         final Genotype<DoubleGene> baselineGenotype = Genotype.of(
             DoubleChromosome.of(DoubleGene.of(baselineNose, NOSE_CONE_RANGE.min(), NOSE_CONE_RANGE.max())),
@@ -80,11 +83,19 @@ public class RocketOptimizer {
             DoubleChromosome.of(DoubleGene.of(baselineSweepLength, FIN_SWEEP_LENGTH_RANGE.min(), FIN_SWEEP_LENGTH_RANGE.max()))
         );
         
+        rejectedEvaluations.set(0);
+        countRejections = false;
         double baselineFitness = fitnessFunction(baselineGenotype);
         final Phenotype<DoubleGene, Double>[] globalBest = new Phenotype[1];
         globalBest[0] = Phenotype.of(baselineGenotype, 1, baselineFitness);
-        
-        try (ProgressBar pb = new ProgressBar("Optimisation", generations)) {
+
+        PrintStream quiet = new PrintStream(OutputStream.nullOutputStream());
+        System.setOut(quiet);
+        System.setErr(quiet);
+        AsciiProgress progress = new AsciiProgress(generations, ORIGINAL_OUT, AsciiProgress.standardOutputIsTerminal());
+        int[] completed = {0};
+        countRejections = true;
+        try {
             engine.stream()
                 .limit(generations)
                 .forEach(result -> {
@@ -95,15 +106,18 @@ public class RocketOptimizer {
                     if (generationBest != null && generationBest.fitness() < globalBest[0].fitness()) {
                         globalBest[0] = generationBest;
                     }
-                    pb.step();
+                    completed[0]++;
+                    progress.update(completed[0], bestApogee(globalBest[0].fitness()));
                 });
+        } finally {
+            countRejections = false;
+            progress.finish(completed[0], bestApogee(globalBest[0].fitness()));
+            System.setOut(ORIGINAL_OUT);
+            System.setErr(ORIGINAL_ERR);
         }
         
-        System.setOut(ORIGINAL_OUT);
-        System.setErr(ORIGINAL_ERR);
-        System.out.println("--------------------------------------------------------------------------");
-        
         OptimisationReport report = new OptimisationReport(populationSize, generations);
+        report.rejectedCandidateEvaluations = rejectedEvaluations.get();
         
         if (globalBest[0].fitness() > baselineFitness) {
             report.optimisedNoseCone = baselineNose;
@@ -146,6 +160,12 @@ public class RocketOptimizer {
                 genotype.get(4).get(0).allele(), genotype.get(5).get(0).allele());
             
             RocketAnalysis.Ensemble ensemble = RocketAnalysis.flyAllWinds(rocket);
+            if (ensemble.rejected) {
+                if (countRejections) {
+                    rejectedEvaluations.incrementAndGet();
+                }
+                return AscentStability.REJECTED_FITNESS;
+            }
             double meanApogee = ensemble.average.apogee;
             if (Double.isNaN(meanApogee)) {
                 return 1000.0;
@@ -154,9 +174,13 @@ public class RocketOptimizer {
         } catch (Exception e) {
             return 1000.0;
         } finally {
-            System.setOut(ORIGINAL_OUT);
-            System.setErr(ORIGINAL_ERR);
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
+    }
+
+    private static double bestApogee(double fitness) {
+        return fitness < 0 ? -fitness : Double.NaN;
     }
     
     private static Rocket reloadRocket() {
@@ -171,8 +195,8 @@ public class RocketOptimizer {
         } catch (Exception e) {
             return null;
         } finally {
-            System.setOut(ORIGINAL_OUT);
-            System.setErr(ORIGINAL_ERR);
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
     }
 
@@ -188,8 +212,8 @@ public class RocketOptimizer {
             System.err.println("Failed to load: " + e.getMessage());
             return null;
         } finally {
-            System.setOut(ORIGINAL_OUT);
-            System.setErr(ORIGINAL_ERR);
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
     }
     
