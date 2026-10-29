@@ -138,11 +138,11 @@ There is no switch for output path, log level, seed, or report format. A progres
 
 ## How to read the report
 
-The report has a configuration block (population, generations, motor, wind cases), then the base design and the optimised design. For each design it prints the six geometry values, launch and burnout mass and centre of gravity, a component breakdown, centre of pressure, and stability.
+After a one-line header (population, generations, time, motor, and the three wind cases), the report is two plain-ASCII tables. Columns are Parameter, Base, Optimised, and Change. Units are in the parameter name.
 
-**Mean apogee (fitness)** is the average of the three wind cases. That number is the only thing the search maximises. Time to apogee, flight time, maximum velocity, maximum acceleration, and velocity off the rod are averages too, and each wind case is listed under them with its own apogee, rod speed, and minimum stability.
+The design table is nose and fin geometry, Barrowman centre of pressure, launch centre of gravity, launch mass, and static margin in calibres. Those mass properties are OpenRocket's, from the rocket that was flown and saved. The flight table is the mean of the three wind cases: mean apogee (this is the fitness), time to apogee, flight time, maximum velocity, maximum acceleration, maximum Mach, velocity off the rod, and the lowest and highest in-flight stability.
 
-**Stability** is informational. Static margin is the Barrowman centre of pressure minus the launch centre of gravity, divided by the rocket's reference length, in calibres. In-flight stability is the lowest and highest sample across all three flights. Neither one changes the score. If the final design's static margin or worst in-flight margin is below 1 calibre, or the static margin or the highest in-flight margin is above 6 calibres, the report prints `WARNING: stability is outside 1 to 6 calibres. It is not part of the score.`
+**Stability** is informational. Static margin is centre of pressure minus launch centre of gravity, divided by the reference length. If the final design's static margin or worst in-flight margin is below 1 calibre, or the static margin or the highest in-flight margin is above 6 calibres, the report prints `WARNING: stability is outside 1 to 6 calibres. It is not part of the score.`
 
 **Verdict** compares the optimised mean apogee with the base mean apogee:
 

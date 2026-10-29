@@ -19,6 +19,7 @@ public class OptimisationReport {
     public double baselineMaxAcceleration;
     public double baselineLaunchRodVelocity;
     public double baselineFlightTime;
+    public double baselineMaxMach;
     public double baselineMinFlightStabilityCalibres;
     public double baselineMaxFlightStabilityCalibres;
     public double baselineLaunchMass;
@@ -39,6 +40,7 @@ public class OptimisationReport {
     public double optimisedMaxAcceleration;
     public double optimisedLaunchRodVelocity;
     public double optimisedFlightTime;
+    public double optimisedMaxMach;
     public double optimisedMinFlightStabilityCalibres;
     public double optimisedMaxFlightStabilityCalibres;
     public double optimisedLaunchMass;
@@ -79,129 +81,111 @@ public class OptimisationReport {
     }
     
     public void generateReport() {
-        String border = "=".repeat(70);
+        String border = "=".repeat(72);
         System.out.println("\n" + border);
-        System.out.println("                    ROCKET OPTIMISATION REPORT");
+        System.out.println(center("ROCKET OPTIMISATION REPORT", 72));
         System.out.println(border);
-        
-        System.out.println("\n[OPTIMISATION CONFIGURATION]");
-        System.out.println("  Population Size:        " + populationSize);
-        System.out.println("  Generations:            " + generations);
         long totalSeconds = executionTimeMs / 1000;
         long hours = totalSeconds / 3600;
         long minutes = (totalSeconds % 3600) / 60;
         long seconds = totalSeconds % 60;
-        System.out.println(String.format("  Execution Time:         %02d:%02d:%02d", hours, minutes, seconds));
+        System.out.println(String.format("Population %d   Generations %d   Time %02d:%02d:%02d",
+                populationSize, generations, hours, minutes, seconds));
         if (motorDescription != null) {
-            System.out.println("  Motor:                  " + motorDescription);
+            System.out.println("Motor: " + motorDescription);
         }
-        System.out.println("  Wind cases:             " + WindCases.summary());
-        
-        System.out.println("\n[BASE DESIGN]");
-        System.out.println(String.format("  Nose Cone Length:       %.4f m", baselineNoseCone));
-        System.out.println(String.format("  Body Tube Length:       %.4f m", baselineBodyTube));
-        System.out.println(String.format("  Fin Root Chord:         %.4f m", baselineFinRootChord));
-        System.out.println(String.format("  Fin Tip Chord:          %.4f m", baselineFinTipChord));
-        System.out.println(String.format("  Fin Height:             %.4f m", baselineFinHeight));
-        System.out.println(String.format("  Fin Sweep Length:       %.4f m", baselineFinSweepLength));
-        System.out.println(String.format("  Center of Gravity:      %.4f m  (launch, with propellant)", baselineCenterOfGravity));
-        System.out.println(String.format("  Launch Mass:            %.4f kg", baselineLaunchMass));
-        System.out.println(String.format("  Burnout CG:             %.4f m", baselineBurnoutCenterOfGravity));
-        System.out.println(String.format("  Burnout Mass:           %.4f kg", baselineBurnoutMass));
-        System.out.println(String.format("  Dry Mass:               %.4f kg", baselineDryMass));
-        if (baselineComponentCG != null && baselineComponentCG.length > 0) {
-            System.out.println("    Component Breakdown:");
-            for (String component : baselineComponentCG) {
-                System.out.println(component);
-            }
-        }
-        System.out.println(String.format("  Center of Pressure:     %.4f m  (Barrowman, most forward)", baselineCenterOfPressure));
-        System.out.println(String.format("  CP at 0 deg wind:       %.4f m", baselineCenterOfPressureZeroAngle));
-        double baseSMAbsolute = baselineCenterOfPressure - baselineCenterOfGravity;
-        System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
-            baseSMAbsolute, baselineStabilityMarginCalibres));
-        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
-            baselineMinFlightStabilityCalibres, baselineMaxFlightStabilityCalibres));
-        System.out.println("\n  Flight Performance (mean of the wind cases):");
-        System.out.println(String.format("  Mean apogee (fitness):  %.2f m", baselineApogee));
-        System.out.println(String.format("  Time to Apogee:         %.2f s", baselineTimeToApogee));
-        System.out.println(String.format("  Flight Time:            %.2f s", baselineFlightTime));
-        System.out.println(String.format("  Max Velocity:           %.2f m/s", baselineMaxVelocity));
-        System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", baselineMaxAcceleration));
-        System.out.println(String.format("  Velocity off Rod:       %.2f m/s", baselineLaunchRodVelocity));
-        printWindCases(baselineWindCases);
-        
-        System.out.println("\n[OPTIMISED DESIGN]");
-        System.out.println(String.format("  Nose Cone Length:       %.4f m", optimisedNoseCone));
-        System.out.println(String.format("  Body Tube Length:       %.4f m", optimisedBodyTube));
-        System.out.println(String.format("  Fin Root Chord:         %.4f m", optimisedFinRootChord));
-        System.out.println(String.format("  Fin Tip Chord:          %.4f m", optimisedFinTipChord));
-        System.out.println(String.format("  Fin Height:             %.4f m", optimisedFinHeight));
-        System.out.println(String.format("  Fin Sweep Length:       %.4f m", optimisedFinSweepLength));
-        System.out.println(String.format("  Center of Gravity:      %.4f m  (launch, with propellant)", optimisedCenterOfGravity));
-        System.out.println(String.format("  Launch Mass:            %.4f kg", optimisedLaunchMass));
-        System.out.println(String.format("  Burnout CG:             %.4f m", optimisedBurnoutCenterOfGravity));
-        System.out.println(String.format("  Burnout Mass:           %.4f kg", optimisedBurnoutMass));
-        System.out.println(String.format("  Dry Mass:               %.4f kg", optimisedDryMass));
-        if (optimisedComponentCG != null && optimisedComponentCG.length > 0) {
-            System.out.println("    Component Breakdown:");
-            for (String component : optimisedComponentCG) {
-                System.out.println(component);
-            }
-        }
-        System.out.println(String.format("  Center of Pressure:     %.4f m  (Barrowman, most forward)", optimisedCenterOfPressure));
-        System.out.println(String.format("  CP at 0 deg wind:       %.4f m", optimisedCenterOfPressureZeroAngle));
-        double optSMAbsolute = optimisedCenterOfPressure - optimisedCenterOfGravity;
-        System.out.println(String.format("  Stability Margin:       %.4f m (%.2f calibres)", 
-            optSMAbsolute, optimisedStabilityMarginCalibres));
-        System.out.println(String.format("  In-flight Stability:    %.2f to %.2f calibres (all winds)",
-            optimisedMinFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres));
-        System.out.println("\n  Flight Performance (mean of the wind cases):");
-        System.out.println(String.format("  Mean apogee (fitness):  %.2f m", optimisedApogee));
-        System.out.println(String.format("  Time to Apogee:         %.2f s", optimisedTimeToApogee));
-        System.out.println(String.format("  Flight Time:            %.2f s", optimisedFlightTime));
-        System.out.println(String.format("  Max Velocity:           %.2f m/s", optimisedMaxVelocity));
-        System.out.println(String.format("  Max Acceleration:       %.2f m/s^2", optimisedMaxAcceleration));
-        System.out.println(String.format("  Velocity off Rod:       %.2f m/s", optimisedLaunchRodVelocity));
-        printWindCases(optimisedWindCases);
-        
-        // Calculate improvements
-        double apogeeImprovement = optimisedApogee - baselineApogee;
-        double apogeeImprovementPercent = (apogeeImprovement / baselineApogee) * 100.0;
-        double velocityImprovement = optimisedMaxVelocity - baselineMaxVelocity;
-        double velocityImprovementPercent = (velocityImprovement / baselineMaxVelocity) * 100.0;
-        
-        System.out.println("\n[PERFORMANCE IMPROVEMENTS]");
-        System.out.println(String.format("  Mean apogee (fitness):  %+.2f m (%+.1f%%)",
-            apogeeImprovement, apogeeImprovementPercent));
-        System.out.println(String.format("  Max Velocity:           %+.2f m/s (%+.1f%%)", 
-            velocityImprovement, velocityImprovementPercent));
+        System.out.println("Wind:  " + WindCases.summary() + " (means below)");
+
+        System.out.println("\nDESIGN");
+        printTableHeader();
+        designRow("Nose cone length (m)", baselineNoseCone, optimisedNoseCone, 4);
+        designRow("Body tube length (m)", baselineBodyTube, optimisedBodyTube, 4);
+        designRow("Fin root chord (m)", baselineFinRootChord, optimisedFinRootChord, 4);
+        designRow("Fin tip chord (m)", baselineFinTipChord, optimisedFinTipChord, 4);
+        designRow("Fin height (m)", baselineFinHeight, optimisedFinHeight, 4);
+        designRow("Fin sweep length (m)", baselineFinSweepLength, optimisedFinSweepLength, 4);
+        designRow("CP (m)", baselineCenterOfPressure, optimisedCenterOfPressure, 4);
+        designRow("Launch CG (m)", baselineCenterOfGravity, optimisedCenterOfGravity, 4);
+        designRow("Launch mass (kg)", baselineLaunchMass, optimisedLaunchMass, 4);
+        designRow("Static margin (cal)", baselineStabilityMarginCalibres, optimisedStabilityMarginCalibres, 2);
+
+        System.out.println("\nFLIGHT (mean of the 3 wind cases; fitness is mean apogee)");
+        printTableHeader();
+        designRow("Mean apogee (m)", baselineApogee, optimisedApogee, 2);
+        designRow("Time to apogee (s)", baselineTimeToApogee, optimisedTimeToApogee, 2);
+        designRow("Flight time (s)", baselineFlightTime, optimisedFlightTime, 2);
+        designRow("Max velocity (m/s)", baselineMaxVelocity, optimisedMaxVelocity, 2);
+        designRow("Max acceleration (m/s^2)", baselineMaxAcceleration, optimisedMaxAcceleration, 2);
+        designRow("Max Mach", baselineMaxMach, optimisedMaxMach, 3);
+        designRow("Velocity off rod (m/s)", baselineLaunchRodVelocity, optimisedLaunchRodVelocity, 2);
+        designRow("In-flight min (cal)", baselineMinFlightStabilityCalibres, optimisedMinFlightStabilityCalibres, 2);
+        designRow("In-flight max (cal)", baselineMaxFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres, 2);
 
         java.util.List<String> stabilityWarnings = FlightFitness.stabilityWarnings(
                 optimisedStabilityMarginCalibres,
                 optimisedMinFlightStabilityCalibres,
                 optimisedMaxFlightStabilityCalibres);
         if (!stabilityWarnings.isEmpty()) {
-            System.out.println("\n  WARNING: stability is outside 1 to 6 calibres. It is not part of the score.");
+            System.out.println("\nWARNING: stability is outside 1 to 6 calibres. It is not part of the score.");
             for (String warning : stabilityWarnings) {
                 System.out.println("  " + warning);
             }
         }
-        
-        System.out.println("\n" + "=".repeat(70));
-        
+
+        System.out.println("\n" + border);
         String verdict = FlightFitness.verdict(baselineApogee, optimisedApogee);
-        int pad = Math.max(0, (70 - verdict.length()) / 2);
-        System.out.println(" ".repeat(pad) + verdict);
-        System.out.println("=".repeat(70) + "\n");
+        System.out.println(center(verdict, 72));
+        System.out.println(border + "\n");
     }
 
-    private static void printWindCases(String[] lines) {
-        if (lines == null) {
-            return;
+    private static void printTableHeader() {
+        System.out.println(row("Parameter", "Base", "Optimised", "Change"));
+        System.out.println(row("---------", "----", "---------", "------"));
+    }
+
+    private static void designRow(String name, double base, double optimised, int decimals) {
+        System.out.println(row(name, formatNumber(base, decimals), formatNumber(optimised, decimals),
+                formatChange(base, optimised, decimals)));
+    }
+
+    private static String formatNumber(double value, int decimals) {
+        if (Double.isNaN(value)) {
+            return "n/a";
         }
-        for (String line : lines) {
-            System.out.println(line);
+        return String.format("%." + decimals + "f", value);
+    }
+
+    private static String formatChange(double base, double optimised, int decimals) {
+        if (Double.isNaN(base) || Double.isNaN(optimised)) {
+            return "n/a";
         }
+        double change = optimised - base;
+        String text = String.format("%." + decimals + "f", Math.abs(change));
+        if (change > 0) {
+            return "+" + text;
+        }
+        if (change < 0) {
+            return "-" + text;
+        }
+        return text;
+    }
+
+    private static String row(String parameter, String base, String optimised, String change) {
+        return pad(parameter, 26) + pad(base, 12) + pad(optimised, 12) + change;
+    }
+
+    private static String pad(String text, int width) {
+        if (text.length() >= width) {
+            return text + " ";
+        }
+        return text + " ".repeat(width - text.length());
+    }
+
+    private static String center(String text, int width) {
+        if (text.length() >= width) {
+            return text;
+        }
+        int left = (width - text.length()) / 2;
+        return " ".repeat(left) + text;
     }
 }

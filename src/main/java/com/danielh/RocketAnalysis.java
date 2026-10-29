@@ -121,18 +121,20 @@ public final class RocketAnalysis {
         public final double maxAcceleration;
         public final double launchRodVelocity;
         public final double flightTime;
+        public final double maxMach;
         public final double minStabilityCalibres;
         public final double maxStabilityCalibres;
 
         FlightResult(double apogee, double timeToApogee, double maxVelocity, double maxAcceleration,
-                     double launchRodVelocity, double flightTime, double minStabilityCalibres,
-                     double maxStabilityCalibres) {
+                     double launchRodVelocity, double flightTime, double maxMach,
+                     double minStabilityCalibres, double maxStabilityCalibres) {
             this.apogee = apogee;
             this.timeToApogee = timeToApogee;
             this.maxVelocity = maxVelocity;
             this.maxAcceleration = maxAcceleration;
             this.launchRodVelocity = launchRodVelocity;
             this.flightTime = flightTime;
+            this.maxMach = maxMach;
             this.minStabilityCalibres = minStabilityCalibres;
             this.maxStabilityCalibres = maxStabilityCalibres;
         }
@@ -283,6 +285,7 @@ public final class RocketAnalysis {
                 mean(results, flight -> flight.maxAcceleration),
                 mean(results, flight -> flight.launchRodVelocity),
                 mean(results, flight -> flight.flightTime),
+                mean(results, flight -> flight.maxMach),
                 minStability,
                 maxStability);
         return new Ensemble(average, minStability, maxStability, results, lines);
@@ -340,6 +343,7 @@ public final class RocketAnalysis {
                 data.getMaxAcceleration(),
                 data.getLaunchRodVelocity(),
                 data.getFlightTime(),
+                data.getMaxMachNumber(),
                 minStability,
                 maxStability);
     }
