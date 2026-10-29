@@ -134,7 +134,7 @@ Wind is always the three cases in `WindCases.java`. Seeds are fixed, so the same
 | moderate | 4 m/s (about 8 knots) | 0.12 | medium |
 | breezy | 7 m/s (about 14 knots) | 0.18 | high |
 
-There is no switch for output path, log level, seed, or report format. A progress line counts generations. When the run finishes it prints one report to standard output and writes the chosen design to `rockets/GA_rocket_vN.ork`, using the next free `N`. Those files are gitignored.
+There is no switch for output path, log level, seed, or report format. While the search runs, a plain ASCII progress line shows the generation, the best mean apogee so far, and the elapsed time and ETA, for example `[##########----------]  45% gen 45/100 best 2553.9 m  elapsed 1:12 eta 1:28`. On a terminal it stays on one line. If output is piped, the same text is printed occasionally as normal lines. When the run finishes it prints one report to standard output and writes the chosen design to `rockets/GA_rocket_vN.ork`, using the next free `N`. Those files are gitignored.
 
 ## How to read the report
 

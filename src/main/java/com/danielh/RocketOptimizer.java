@@ -6,8 +6,9 @@ import io.jenetics.util.DoubleRange;
 import info.openrocket.core.rocketcomponent.*;
 import info.openrocket.core.document.OpenRocketDocument;
 import info.openrocket.core.file.GeneralRocketLoader;
-import me.tongfei.progressbar.ProgressBar;
 import java.io.File;
+import java.io.OutputStream;
+import java.io.PrintStream;
 
 public class RocketOptimizer {
     
@@ -69,7 +70,6 @@ public class RocketOptimizer {
         System.out.println("\n=== ROCKET DESIGN OPTIMISATION ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
         System.out.println("Optimising: Nose Cone, Body Tube, Fin Parameters");
-        System.out.println("--------------------------------------------------------------------------");
         
         final Genotype<DoubleGene> baselineGenotype = Genotype.of(
             DoubleChromosome.of(DoubleGene.of(baselineNose, NOSE_CONE_RANGE.min(), NOSE_CONE_RANGE.max())),
@@ -83,8 +83,13 @@ public class RocketOptimizer {
         double baselineFitness = fitnessFunction(baselineGenotype);
         final Phenotype<DoubleGene, Double>[] globalBest = new Phenotype[1];
         globalBest[0] = Phenotype.of(baselineGenotype, 1, baselineFitness);
-        
-        try (ProgressBar pb = new ProgressBar("Optimisation", generations)) {
+
+        PrintStream quiet = new PrintStream(OutputStream.nullOutputStream());
+        System.setOut(quiet);
+        System.setErr(quiet);
+        AsciiProgress progress = new AsciiProgress(generations, ORIGINAL_OUT, AsciiProgress.standardOutputIsTerminal());
+        int[] completed = {0};
+        try {
             engine.stream()
                 .limit(generations)
                 .forEach(result -> {
@@ -95,13 +100,14 @@ public class RocketOptimizer {
                     if (generationBest != null && generationBest.fitness() < globalBest[0].fitness()) {
                         globalBest[0] = generationBest;
                     }
-                    pb.step();
+                    completed[0]++;
+                    progress.update(completed[0], bestApogee(globalBest[0].fitness()));
                 });
+        } finally {
+            progress.finish(completed[0], bestApogee(globalBest[0].fitness()));
+            System.setOut(ORIGINAL_OUT);
+            System.setErr(ORIGINAL_ERR);
         }
-        
-        System.setOut(ORIGINAL_OUT);
-        System.setErr(ORIGINAL_ERR);
-        System.out.println("--------------------------------------------------------------------------");
         
         OptimisationReport report = new OptimisationReport(populationSize, generations);
         
@@ -154,9 +160,13 @@ public class RocketOptimizer {
         } catch (Exception e) {
             return 1000.0;
         } finally {
-            System.setOut(ORIGINAL_OUT);
-            System.setErr(ORIGINAL_ERR);
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
+    }
+
+    private static double bestApogee(double fitness) {
+        return fitness < 0 ? -fitness : Double.NaN;
     }
     
     private static Rocket reloadRocket() {
@@ -171,8 +181,8 @@ public class RocketOptimizer {
         } catch (Exception e) {
             return null;
         } finally {
-            System.setOut(ORIGINAL_OUT);
-            System.setErr(ORIGINAL_ERR);
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
     }
 
@@ -188,8 +198,8 @@ public class RocketOptimizer {
             System.err.println("Failed to load: " + e.getMessage());
             return null;
         } finally {
-            System.setOut(ORIGINAL_OUT);
-            System.setErr(ORIGINAL_ERR);
+            System.setOut(originalOut);
+            System.setErr(originalErr);
         }
     }
     
