@@ -12,38 +12,29 @@ public class App {
     private static final java.io.PrintStream ORIGINAL_ERR = System.err;
 
     public static void main(String[] args) {
+        OptimiseCommand.Args command;
+        try {
+            command = OptimiseCommand.parse(args);
+        } catch (OptimiseCommand.UsageException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+            return;
+        }
+
         OpenRocketCore.initialize();
         String rocketPath = new File("rockets", "GA_base_rocket.ork").getPath();
-        
-        if (args.length > 0 && args[0].equalsIgnoreCase("optimise")) {
-            String motorType = "I350R-0";
-            int population = 50;
-            int generations = 100;
-            
-            if (args.length >= 2) {
-                motorType = args[1];
-            }
-            if (args.length >= 4) {
-                try {
-                    population = Integer.parseInt(args[2]);
-                    generations = Integer.parseInt(args[3]);
-                } catch (NumberFormatException e) {
-                    System.err.println("Invalid parameters. Usage: App optimise <motorType> [population] [generations]");
-                }
-            }
 
-            MotorCatalogue.Selection motor;
-            try {
-                motor = MotorCatalogue.select(motorType);
-            } catch (MotorCatalogue.MotorLookupException e) {
-                System.err.println(e.getMessage());
-                System.exit(1);
-                return;
-            }
-            System.out.println("Motor: " + motor.describe());
-            
-            runOptimisation(population, generations, rocketPath, motor);
+        MotorCatalogue.Selection motor;
+        try {
+            motor = MotorCatalogue.select(command.motor);
+        } catch (MotorCatalogue.MotorLookupException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+            return;
         }
+        System.out.println("Motor: " + motor.describe());
+
+        runOptimisation(command.population, command.generations, rocketPath, motor);
     }
     
     private static void runOptimisation(int population, int generations, String rocketPath,
@@ -51,7 +42,8 @@ public class App {
         try {
             OpenRocketDocument baselineDoc = loadRocket(new File(rocketPath));
             if (baselineDoc == null) {
-                System.err.println("Failed to load baseline rocket");
+                System.err.println("Failed to load baseline rocket: " + rocketPath);
+                System.exit(1);
                 return;
             }
             Rocket baselineRocket = baselineDoc.getRocket();
@@ -72,6 +64,7 @@ public class App {
             
             if (report == null) {
                 System.err.println("Optimisation failed");
+                System.exit(1);
                 return;
             }
             
@@ -90,23 +83,26 @@ public class App {
             }
             
             OpenRocketDocument optimisedDoc = loadRocket(new File(rocketPath));
-            if (optimisedDoc != null) {
-                Rocket optimisedRocket = optimisedDoc.getRocket();
-                MotorCatalogue.mount(optimisedRocket, motor);
-                setComponentLength(optimisedRocket, NoseCone.class, report.optimisedNoseCone);
-                setComponentLength(optimisedRocket, BodyTube.class, report.optimisedBodyTube);
-                setFinParameters(optimisedRocket, report.optimisedFinRootChord, 
-                    report.optimisedFinTipChord, report.optimisedFinHeight, report.optimisedFinSweepLength);
-                
-                RocketAnalysis.Ensemble optimisedResult = runEnsemble(optimisedRocket);
-                if (optimisedResult != null) {
-                    applyEnsemble(report, optimisedResult, false);
-                }
-                RocketAnalysis.MassProperties optimisedMass = RocketAnalysis.massProperties(optimisedRocket);
-                applyMassProperties(report, optimisedMass, false);
-                
-                saveOptimisedRocket(optimisedDoc);
+            if (optimisedDoc == null) {
+                System.err.println("Failed to load baseline rocket: " + rocketPath);
+                System.exit(1);
+                return;
             }
+            Rocket optimisedRocket = optimisedDoc.getRocket();
+            MotorCatalogue.mount(optimisedRocket, motor);
+            setComponentLength(optimisedRocket, NoseCone.class, report.optimisedNoseCone);
+            setComponentLength(optimisedRocket, BodyTube.class, report.optimisedBodyTube);
+            setFinParameters(optimisedRocket, report.optimisedFinRootChord, 
+                report.optimisedFinTipChord, report.optimisedFinHeight, report.optimisedFinSweepLength);
+            
+            RocketAnalysis.Ensemble optimisedResult = runEnsemble(optimisedRocket);
+            if (optimisedResult != null) {
+                applyEnsemble(report, optimisedResult, false);
+            }
+            RocketAnalysis.MassProperties optimisedMass = RocketAnalysis.massProperties(optimisedRocket);
+            applyMassProperties(report, optimisedMass, false);
+            
+            saveOptimisedRocket(optimisedDoc);
             
             report.generateReport();
             System.exit(0);

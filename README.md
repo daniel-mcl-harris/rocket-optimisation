@@ -6,24 +6,26 @@ Run commands from the project directory. The rocket path is relative to that dir
 
 ## Run an optimisation
 
-There is one command, `optimise`. The spelling is fixed; `optimize` is not recognised. There are no flags. Arguments are positional:
+The only command is `optimise` (any capitalisation). Anything else, including `optimize` or no command at all, prints a short usage hint that names `optimise` and exits with code 1.
 
 ```
-optimise [motor] [population generations]
+optimise [motor] [population] [generations]
+optimise [motor] [--pop <population>] [--gens <generations>]
 ```
 
-| Position | Name | Type | Default | What it does |
-|---|---|---|---|---|
-| 1 | command | word | none | Must be `optimise`, compared without regard to case. |
-| 2 | motor | text | `I350R-0` | Looked up in OpenRocket's motor database and mounted for the whole run, replacing the motor saved in the `.ork`. |
-| 3 | population | integer | `50` | Jenetics population size. Used only when argument 4 is also present. |
-| 4 | generations | integer | `100` | Number of generations. Used only when argument 3 is also present. |
+| Argument | Type | Default | What it does |
+|---|---|---|---|
+| `motor` | text | `I350R-0` | First word that is not an option. Looked up in OpenRocket's motor database and mounted for the whole run, replacing the motor saved in the `.ork`. |
+| `population` or `--pop` | positive integer | `50` | Jenetics population size. |
+| `generations` or `--gens` | positive integer | `100` | Number of generations. |
 
-`run.ps1` forwards every argument to `com.danielh.App`. It does not add options of its own.
+Population and generations are independent. Give both, either, or neither. A single number after the motor is the population, and generations stay at 100. To set only the generation count, use `--gens`. `--pop` and `--gens` also accept `--pop=10` and `--gens=5`. Giving the same count twice (for example a positional population and `--pop`) prints the usage hint and exits 1.
+
+`run.ps1` and `run.sh` forward every argument to `com.danielh.App`. They do not add options of their own.
 
 ### Windows
 
-`run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator. It drops a few JDK warning lines (`sun.misc.Unsafe`, final-field mutation, and similar). Maven's own error output is discarded.
+`run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator. It drops a few JDK warning lines (`sun.misc.Unsafe`, final-field mutation, and similar). Maven's own output, including errors, is left visible. If Maven or Java fails, the script exits with that program's code.
 
 ```powershell
 ./run.ps1 optimise I350R-0 50 100
@@ -45,6 +47,21 @@ Defaults for everything (`I350R-0`, population 50, generations 100):
 
 ```powershell
 ./run.ps1 optimise
+```
+
+Population 50, but only 5 generations:
+
+```powershell
+./run.ps1 optimise I350R-0 --gens 5
+```
+
+### Unix
+
+`run.sh` is the same sequence as `run.ps1`, with `:` in the classpath. Maven and Java errors stay on the terminal, and a non-zero exit from either command is the script's exit code.
+
+```bash
+./run.sh optimise I350R-0 50 100
+./run.sh optimise H128W-6 --pop 10 --gens 5
 ```
 
 ### Maven or Java
@@ -91,7 +108,9 @@ A motor wider than the mount by more than 2 mm prints a warning and is still ins
 
 ### Population and generations
 
-Both numbers have to be present. `optimise I350R-0 10` does not set the population to 10; arguments 3 and 4 are read together, so this stays at 50 and 100.
+`optimise I350R-0 10` sets the population to 10 and leaves generations at 100. `optimise I350R-0 --gens 5` leaves the population at 50 and runs 5 generations. `optimise I350R-0 10 5` sets both, and so does `optimise I350R-0 --pop 10 --gens 5`.
+
+A value that is not a positive integer (letters, zero, or a negative number) prints the usage hint and exits 1. The run does not fall back to the defaults.
 
 Each candidate is three flight simulations (one per wind case), run together. A smoke test is a population of 3 to 10 and 1 to 5 generations. The default 50 and 100 is a long run. The search ranges themselves are not arguments; they are the `DoubleRange` constants in `RocketOptimizer.java`:
 
@@ -103,8 +122,6 @@ Each candidate is three flight simulations (one per wind case), run together. A 
 | Fin tip chord | 0.00 to 0.20 m |
 | Fin height | 0.03 to 0.20 m |
 | Fin sweep length | 0.00 to 0.05 m |
-
-If either number is not an integer, the program prints `Invalid parameters. Usage: App optimise <motorType> [population] [generations]` and then continues with population 50 and generations 100. It does not stop, and it does not check that the integers are positive.
 
 ## What is not a command-line option
 
@@ -136,7 +153,7 @@ The report has a configuration block (population, generations, motor, wind cases
 | From 1 m lower through 1 m higher | `NO SIGNIFICANT CHANGE` |
 | More than 1 m lower | `OPTIMISATION FAILED` |
 
-A successful run ends with exit code 0. An unknown or ambiguous motor ends with exit code 1 before any flights. If the rocket file cannot be loaded, the program prints `Failed to load baseline rocket` and returns without a non-zero exit code.
+A successful run ends with exit code 0. An unknown command, a bad population or generation count, and an unknown or ambiguous motor end with exit code 1 before any flights. If `rockets/GA_base_rocket.ork` cannot be loaded, the program prints `Failed to load baseline rocket:` and the file path, then exits 1.
 
 ## Flight model
 
