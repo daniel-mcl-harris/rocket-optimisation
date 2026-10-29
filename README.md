@@ -21,11 +21,11 @@ optimise [motor] [--pop <population>] [--gens <generations>]
 
 Population and generations are independent. Give both, either, or neither. A single number after the motor is the population, and generations stay at 100. To set only the generation count, use `--gens`. `--pop` and `--gens` also accept `--pop=10` and `--gens=5`. Giving the same count twice (for example a positional population and `--pop`) prints the usage hint and exits 1.
 
-`run.ps1` and `run.sh` forward every argument to `com.danielh.App`. They do not add options of their own.
+`run.ps1` and `run.sh` forward every argument to `com.danielh.App`. They do not add application options of their own. They do pass three JVM flags, `--enable-native-access=ALL-UNNAMED`, `--sun-misc-unsafe-memory-access=allow`, and `--enable-final-field-mutation=ALL-UNNAMED`, so the JDK does not print the `sun.misc.Unsafe` and final-field warnings. Java is not piped or redirected, so it keeps the console and the progress line can update in place.
 
 ### Windows
 
-`run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator. It drops a few JDK warning lines (`sun.misc.Unsafe`, final-field mutation, and similar). Maven's own output, including errors, is left visible. If Maven or Java fails, the script exits with that program's code.
+`run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator, attached to the PowerShell console. Maven's own output, including errors, is left visible (`mvn -q` still prints failures). If Maven or Java fails, the script exits with that program's code. A successful search that opened the chart window does not return to the prompt until that window is closed.
 
 ```powershell
 ./run.ps1 optimise I350R 50 100
@@ -57,7 +57,7 @@ Population 50, but only 5 generations:
 
 ### Unix
 
-`run.sh` is the same sequence as `run.ps1`, with `:` in the classpath. Maven and Java errors stay on the terminal, and a non-zero exit from either command is the script's exit code.
+`run.sh` is the same sequence as `run.ps1`, with `:` in the classpath. Java is attached to the terminal. Maven and Java errors stay visible, and a non-zero exit from either command is the script's exit code.
 
 ```bash
 ./run.sh optimise I350R 50 100
@@ -140,9 +140,9 @@ There is no switch for output path, log level, seed, or report format. `--no-plo
 
 During the search a separate window titled **Best apogee by generation** plots the best accepted apogee against generation. It is a plain Swing frame, opened on Swing's event thread when the run starts, and each generation repaints it without blocking the search. The ASCII progress line keeps printing in the terminal.
 
-From PowerShell, `run.ps1` starts Java with stdout and stderr redirected so it can drop the JDK warnings and print lines as they arrive. That redirect means Java has no console, so the ASCII progress is the occasional milestone lines rather than one carriage-return line. The chart is not drawn in that console. It is its own desktop window, and the redirect does not create it, hide it, or freeze it. The window appears when the search starts and updates on each generation while PowerShell is still running Java.
+From PowerShell, `run.ps1` starts Java on that console, with no pipe. `System.console()` is set, so the ASCII progress stays on one line and rewrites itself with a carriage return while the search runs. The chart is not drawn in that console. It is its own desktop window, opened when the search starts, and it updates on each generation. The console attachment does not create, hide, or freeze that window.
 
-When the search ends, the report is printed and `rockets/GA_rocket_vN.csv` and `rockets/GA_rocket_vN.png` are written next to the saved rocket. The window stays open. `run.ps1` is still waiting on Java, so the prompt returns when the window is closed. Closing the window during the search just dismisses it; the search keeps going and the script exits when the run finishes. `--no-plot` skips the window and does not write the CSV or PNG.
+When the search ends, the report is printed in PowerShell and `rockets/GA_rocket_vN.csv` and `rockets/GA_rocket_vN.png` are written next to the saved rocket. The window stays open. `run.ps1` is still waiting on Java, so the prompt returns when the window is closed. Closing the window during the search just dismisses it; the search keeps going and the script exits when the run finishes. `--no-plot` skips the window and does not write the CSV or PNG.
 
 Over SSH, or anywhere `GraphicsEnvironment.isHeadless()` is true, the window is skipped and no exception is thrown. The CSV and PNG are still written, and the process exits as soon as the report is printed. The ASCII progress line is unchanged.
 
