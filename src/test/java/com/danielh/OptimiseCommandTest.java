@@ -1,6 +1,7 @@
 package com.danielh;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -27,6 +28,7 @@ public class OptimiseCommandTest {
         assertEquals("I350R", defaults.motor);
         assertEquals(50, defaults.population);
         assertEquals(100, defaults.generations);
+        assertTrue(defaults.plot);
 
         OptimiseCommand.Args motorOnly = OptimiseCommand.parse(new String[] {"Optimise", "H128W-6"});
         assertEquals("H128W-6", motorOnly.motor);
@@ -56,6 +58,12 @@ public class OptimiseCommandTest {
         assertEquals("I350R-P", mixed.motor);
         assertEquals(12, mixed.population);
         assertEquals(4, mixed.generations);
+
+        OptimiseCommand.Args noPlot = OptimiseCommand.parse(new String[] {"optimise", "--no-plot", "I350R", "10", "5"});
+        assertEquals("I350R", noPlot.motor);
+        assertEquals(10, noPlot.population);
+        assertEquals(5, noPlot.generations);
+        assertFalse(noPlot.plot);
     }
 
     @Test
@@ -69,6 +77,7 @@ public class OptimiseCommandTest {
         assertUsage(new String[] {"optimise", "--gens", "-1"});
         assertUsage(new String[] {"optimise", "--pop"});
         assertUsage(new String[] {"optimise", "--wind", "3"});
+        assertUsage(new String[] {"optimise", "--no-plot", "--no-plot"});
         assertUsage(new String[] {"optimise", "I350R", "10", "5", "--pop", "8"});
     }
 

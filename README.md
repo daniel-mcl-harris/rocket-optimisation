@@ -21,11 +21,11 @@ optimise [motor] [--pop <population>] [--gens <generations>]
 
 Population and generations are independent. Give both, either, or neither. A single number after the motor is the population, and generations stay at 100. To set only the generation count, use `--gens`. `--pop` and `--gens` also accept `--pop=10` and `--gens=5`. Giving the same count twice (for example a positional population and `--pop`) prints the usage hint and exits 1.
 
-`run.ps1` and `run.sh` forward every argument to `com.danielh.App`. They do not add options of their own.
+`run.ps1` and `run.sh` forward every argument to `com.danielh.App`. They do not add application options of their own. They do pass three JVM flags, `--enable-native-access=ALL-UNNAMED`, `--sun-misc-unsafe-memory-access=allow`, and `--enable-final-field-mutation=ALL-UNNAMED`, so the JDK does not print the `sun.misc.Unsafe` and final-field warnings. Java is not piped or redirected, so it keeps the console and the progress line can update in place.
 
 ### Windows
 
-`run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator. It drops a few JDK warning lines (`sun.misc.Unsafe`, final-field mutation, and similar). Maven's own output, including errors, is left visible. If Maven or Java fails, the script exits with that program's code.
+`run.ps1` compiles, copies dependencies, and starts Java with the Windows classpath separator, attached to the PowerShell console. Maven's own output, including errors, is left visible (`mvn -q` still prints failures). If Maven or Java fails, the script exits with that program's code. A successful search that opened the chart window does not return to the prompt until that window is closed.
 
 ```powershell
 ./run.ps1 optimise I350R 50 100
@@ -57,7 +57,7 @@ Population 50, but only 5 generations:
 
 ### Unix
 
-`run.sh` is the same sequence as `run.ps1`, with `:` in the classpath. Maven and Java errors stay on the terminal, and a non-zero exit from either command is the script's exit code.
+`run.sh` is the same sequence as `run.ps1`, with `:` in the classpath. Java is attached to the terminal. Maven and Java errors stay visible, and a non-zero exit from either command is the script's exit code.
 
 ```bash
 ./run.sh optimise I350R 50 100
@@ -107,7 +107,7 @@ A motor wider than the mount by more than 2 mm prints a warning and is still ins
 
 ### Population and generations
 
-`optimise I350R 10` sets the population to 10 and leaves generations at 100. `optimise I350R --gens 5` leaves the population at 50 and runs 5 generations. `optimise I350R 10 5` sets both, and so does `optimise I350R --pop 10 --gens 5`.
+`optimise I350R 10` sets the population to 10 and leaves generations at 100. `optimise I350R --gens 5` leaves the population at 50 and runs 5 generations. `optimise I350R 10 5` sets both, and so does `optimise I350R --pop 10 --gens 5`. `--no-plot` turns the apogee chart off.
 
 A value that is not a positive integer (letters, zero, or a negative number) prints the usage hint and exits 1. The run does not fall back to the defaults.
 
@@ -134,15 +134,25 @@ Wind is always the three cases in `WindCases.java`. Seeds are fixed, so the same
 | moderate | 4 m/s (about 8 knots) | 0.12 | medium |
 | breezy | 7 m/s (about 14 knots) | 0.18 | high |
 
-There is no switch for output path, log level, seed, or report format. While the search runs, a plain ASCII progress line shows the generation, the best mean apogee so far, and the elapsed time and ETA, for example `[##########----------]  45% gen 45/100 best 2553.9 m  elapsed 1:12 eta 1:28`. On a terminal it stays on one line. If output is piped, the same text is printed occasionally as normal lines. When the run finishes it prints one report to standard output and writes the chosen design to `rockets/GA_rocket_vN.ork`, using the next free `N`. Those files are gitignored.
+There is no switch for output path, log level, seed, or report format. `--no-plot` is the switch that skips the chart. While the search runs, a plain ASCII progress line shows the generation, the best mean apogee so far, and the elapsed time and ETA, for example `[##########----------]  45% gen 45/100 best 2553.9 m  elapsed 1:12 eta 1:28`. On a terminal it stays on one line. If output is piped, the same text is printed occasionally as normal lines. When the run finishes it prints one report to standard output and writes the chosen design to `rockets/GA_rocket_vN.ork`, using the next free `N`. Those files are gitignored, and so are the chart files written beside them.
+
+### Apogee chart
+
+During the search a separate window titled **Best apogee by generation** plots the best accepted apogee against generation. It is a plain Swing frame, opened on Swing's event thread when the run starts, and each generation repaints it without blocking the search. The ASCII progress line keeps printing in the terminal.
+
+From PowerShell, `run.ps1` starts Java on that console, with no pipe. `System.console()` is set, so the ASCII progress stays on one line and rewrites itself with a carriage return while the search runs. The chart is not drawn in that console. It is its own desktop window, opened when the search starts, and it updates on each generation. The console attachment does not create, hide, or freeze that window.
+
+When the search ends, the report is printed in PowerShell and `rockets/GA_rocket_vN.csv` and `rockets/GA_rocket_vN.png` are written next to the saved rocket. The window stays open. `run.ps1` is still waiting on Java, so the prompt returns when the window is closed. Closing the window during the search just dismisses it; the search keeps going and the script exits when the run finishes. `--no-plot` skips the window and does not write the CSV or PNG.
+
+Over SSH, or anywhere `GraphicsEnvironment.isHeadless()` is true, the window is skipped and no exception is thrown. The CSV and PNG are still written, and the process exits as soon as the report is printed. The ASCII progress line is unchanged.
 
 ## How to read the report
 
 After a one-line header (population, generations, time, motor, and the three wind cases), the report is two plain-ASCII tables. Columns are Parameter, Base, Optimised, and Change. Units are in the parameter name.
 
-The design table is nose and fin geometry, Barrowman centre of pressure, launch centre of gravity, launch mass, and static margin in calibres. Those mass properties are OpenRocket's, from the rocket that was flown and saved. The flight table is the mean of the three wind cases: mean apogee (this is the fitness), time to apogee, flight time, maximum velocity, maximum acceleration, maximum Mach, velocity off the rod, and the lowest and highest in-flight stability.
+The design table is nose and fin geometry, Barrowman centre of pressure, launch centre of gravity, launch mass, and static margin in calibres. Those mass properties are OpenRocket's, from the rocket that was flown and saved, and they include the recovery parachute. The flight table is the mean of the three wind cases: mean apogee (this is the fitness), time to apogee, flight time, maximum velocity, maximum acceleration, maximum Mach, velocity off the rod, vertical descent rate at touchdown, speed at parachute deployment, and the lowest and highest in-flight stability.
 
-**Static margin** is informational. It is centre of pressure minus launch centre of gravity, divided by the reference length. If the final design's static margin or worst in-flight margin is below 1 calibre, or the static margin or the highest in-flight margin is above 6 calibres, the report prints `WARNING: stability is outside 1 to 6 calibres. It is not part of the score.` The raw in-flight minimum includes samples near apogee, where a calibre stops meaning anything, so that warning can name a large negative number on a flight that was still accepted.
+**Static margin** is informational. It is centre of pressure minus launch centre of gravity, divided by the reference length. If the final design's static margin or worst in-flight margin is below 1 calibre, or the static margin or the highest in-flight margin is above 6 calibres, the report prints `WARNING: stability is outside 1 to 6 calibres. It is not part of the score.` The raw in-flight minimum includes samples near apogee, where a calibre stops meaning anything, so that warning can name a large negative number on a flight that was still accepted. Samples from the moment the parachute opens onward are left out of that range: the opening instant is not a flying margin.
 
 **In-flight instability** is part of the score. Each wind case is checked from launch-rod clearance to apogee. A case is rejected for a tumble event (OpenRocket has left stable flight and will descend with the tumble model), an aborted simulation, stability below 1.0 cal for more than 0.05 s while faster than 30 m/s, or an angle of attack above 20 degrees for more than 0.05 s in that same window. Samples slower than 30 m/s are ignored. On an ascent longer than 2.0 s, the last 2.0 s before apogee are ignored as well; a shorter flight is judged on the fast samples it has, so a rocket that falls over during boost is still rejected. One failing wind case rejects the candidate. Its fitness is a floor of 1, which is worse than every positive apogee, so a higher apogee cannot buy a tumble or an unstable climb. The report prints the thresholds, how many candidate evaluations were rejected, and whether the base and optimised designs passed. The baseline flight is not included in that count.
 
@@ -164,4 +174,5 @@ Centre of pressure, centre of gravity, and the stability margin come from OpenRo
 - CG and mass: `MassCalculator.calculateLaunch`, `calculateBurnout`, and `calculateStructure` on the selected flight configuration.
 - Stability in calibres: `(CP.x - launch CG.x) / FlightConfiguration.getReferenceLength()`.
 - Flight data: `FlightData` for apogee, time, velocity, acceleration, and velocity off the rod. `FlightDataType.TYPE_STABILITY` on the sustainer branch supplies the in-flight range. Centre-of-pressure samples before the rocket leaves the rod are empty, so the in-flight range starts after launch-rod clearance.
-- Ascent check: `AscentStability` reads the `TUMBLE`, `SIM_ABORT`, and `EXCEPTION` events, plus `TYPE_STABILITY`, `TYPE_VELOCITY_TOTAL`, and `TYPE_AOA` between rod clearance and apogee. The no-recovery and supersonic-body warnings stay informational, because the base rocket already carries both.
+- Ascent check: `AscentStability` reads the `TUMBLE`, `SIM_ABORT`, and `EXCEPTION` events, plus `TYPE_STABILITY`, `TYPE_VELOCITY_TOTAL`, and `TYPE_AOA` between rod clearance and apogee. The supersonic-body warning stays informational. The base file has no recovery device; `RecoveryChute` attaches one before every flight, so that warning is not raised for a search flight.
+- Recovery: every candidate carries the same parachute, added in code by `RecoveryChute` (it is not baked into `GA_base_rocket.ork`). It is a round canopy, Cd 0.8, diameter 0.55 m, packed mass 0.025 kg, 4 cm behind the front of the body tube. It deploys at apogee plus 1 s. The diameter is sized for about 6 m/s vertical speed at the burnout mass; a base-rocket flight touches down near 5.8 m/s. Descent rate in the report is that vertical touchdown speed, so a crosswind does not make it look faster. Deployment speed is OpenRocket's speed at canopy opening, about 9 to 12 m/s on the base rocket.

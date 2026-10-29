@@ -27,6 +27,7 @@ import info.openrocket.core.document.Simulation;
 import info.openrocket.core.simulation.FlightData;
 import info.openrocket.core.simulation.FlightDataBranch;
 import info.openrocket.core.simulation.FlightDataType;
+import info.openrocket.core.simulation.FlightEvent;
 import info.openrocket.core.simulation.SimulationOptions;
 import info.openrocket.core.simulation.exception.SimulationException;
 import info.openrocket.core.startup.Application;
@@ -130,11 +131,16 @@ public final class RocketAnalysis {
         public final double maxMach;
         public final double minStabilityCalibres;
         public final double maxStabilityCalibres;
+        /** Absolute vertical speed at the last sample, metres per second. */
+        public final double descentRate;
+        /** OpenRocket's speed at recovery deployment, metres per second. */
+        public final double deploymentSpeed;
         public final AscentStability.Result ascent;
 
         FlightResult(double apogee, double timeToApogee, double maxVelocity, double maxAcceleration,
                      double launchRodVelocity, double flightTime, double maxMach,
                      double minStabilityCalibres, double maxStabilityCalibres,
+                     double descentRate, double deploymentSpeed,
                      AscentStability.Result ascent) {
             this.apogee = apogee;
             this.timeToApogee = timeToApogee;
@@ -145,6 +151,8 @@ public final class RocketAnalysis {
             this.maxMach = maxMach;
             this.minStabilityCalibres = minStabilityCalibres;
             this.maxStabilityCalibres = maxStabilityCalibres;
+            this.descentRate = descentRate;
+            this.deploymentSpeed = deploymentSpeed;
             this.ascent = ascent;
         }
     }
@@ -210,6 +218,7 @@ public final class RocketAnalysis {
      * produces the same numbers.
      */
     public static Ensemble flyAllWinds(Rocket rocket) throws SimulationException {
+        RecoveryChute.ensure(rocket);
         List<WindCases.Case> cases = WindCases.CASES;
         List<Future<FlightResult>> futures = new ArrayList<>();
         for (WindCases.Case wind : cases) {
@@ -242,6 +251,7 @@ public final class RocketAnalysis {
     }
 
     public static FlightResult simulate(Rocket rocket, WindCases.Case wind) throws SimulationException {
+        RecoveryChute.ensure(rocket);
         Simulation simulation = new Simulation(rocket);
         applyWind(simulation.getOptions(), wind);
         simulation.simulate();
@@ -301,6 +311,8 @@ public final class RocketAnalysis {
                 mean(results, flight -> flight.maxMach),
                 minStability,
                 maxStability,
+                mean(results, flight -> flight.descentRate),
+                mean(results, flight -> flight.deploymentSpeed),
                 AscentStability.pass());
         String rejectionReason = String.join("; ", reasons);
         return new Ensemble(average, minStability, maxStability, results, lines, !reasons.isEmpty(), rejectionReason);
@@ -345,11 +357,15 @@ public final class RocketAnalysis {
         }
         double minStability = Double.NaN;
         double maxStability = Double.NaN;
+        double descentRate = Double.NaN;
         if (data.getBranchCount() > 0) {
             FlightDataBranch branch = data.getBranch(0);
             List<Double> stability = branch.get(FlightDataType.TYPE_STABILITY);
-            minStability = finiteExtreme(stability, true);
-            maxStability = finiteExtreme(stability, false);
+            double beforeDeployment = deploymentCutoff(branch);
+            List<Double> time = branch.get(FlightDataType.TYPE_TIME);
+            minStability = finiteExtremeBefore(time, stability, beforeDeployment, true);
+            maxStability = finiteExtremeBefore(time, stability, beforeDeployment, false);
+            descentRate = verticalSpeedAtEnd(branch);
         }
         return new FlightResult(
                 data.getMaxAltitude(),
@@ -361,7 +377,60 @@ public final class RocketAnalysis {
                 data.getMaxMachNumber(),
                 minStability,
                 maxStability,
+                descentRate,
+                data.getDeploymentVelocity(),
                 AscentStability.assess(data));
+    }
+
+    /**
+     * Stability samples at canopy opening are not a flying margin. The reported
+     * range stops at the deployment event. The ascent check still reads the
+     * whole branch and applies its own speed and apogee gates.
+     */
+    private static double deploymentCutoff(FlightDataBranch branch) {
+        FlightEvent deployed = branch.getFirstEvent(FlightEvent.Type.RECOVERY_DEVICE_DEPLOYMENT);
+        if (deployed == null || Double.isNaN(deployed.getTime())) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return deployed.getTime();
+    }
+
+    private static double finiteExtremeBefore(List<Double> time, List<Double> values, double cutoff, boolean minimum) {
+        double extreme = Double.NaN;
+        if (values == null) {
+            return extreme;
+        }
+        for (int i = 0; i < values.size(); i++) {
+            Double value = values.get(i);
+            if (value == null || value.isNaN()) {
+                continue;
+            }
+            if (time != null && i < time.size()) {
+                Double sampleTime = time.get(i);
+                if (sampleTime != null && !sampleTime.isNaN() && sampleTime >= cutoff) {
+                    continue;
+                }
+            }
+            if (Double.isNaN(extreme) || (minimum ? value < extreme : value > extreme)) {
+                extreme = value;
+            }
+        }
+        return extreme;
+    }
+
+    /** Absolute vertical velocity of the last finite sample. Under a canopy this is the touchdown descent rate. */
+    private static double verticalSpeedAtEnd(FlightDataBranch branch) {
+        List<Double> vertical = branch.get(FlightDataType.TYPE_VELOCITY_Z);
+        if (vertical == null) {
+            return Double.NaN;
+        }
+        for (int i = vertical.size() - 1; i >= 0; i--) {
+            Double sample = vertical.get(i);
+            if (sample != null && !sample.isNaN()) {
+                return Math.abs(sample);
+            }
+        }
+        return Double.NaN;
     }
 
     private static double defaultMach() {
@@ -416,19 +485,4 @@ public final class RocketAnalysis {
         return lines;
     }
 
-    private static double finiteExtreme(List<Double> values, boolean minimum) {
-        double extreme = Double.NaN;
-        if (values == null) {
-            return extreme;
-        }
-        for (Double value : values) {
-            if (value == null || value.isNaN()) {
-                continue;
-            }
-            if (Double.isNaN(extreme) || (minimum ? value < extreme : value > extreme)) {
-                extreme = value;
-            }
-        }
-        return extreme;
-    }
 }

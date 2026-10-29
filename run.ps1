@@ -1,6 +1,11 @@
 #!/usr/bin/env pwsh
-# Wrapper script to run the app with filtered JDK warnings.
-# Maven and Java write their own errors, and this script exits with their code.
+# Compile, then start Java attached to this console.
+# Maven and Java errors stay visible, and the script exits with their code.
+# JDK warnings are suppressed with JVM flags. Java's stdout and stderr are not
+# piped or redirected, so System.console() is set and the progress line can
+# update in place. The chart is a separate window. This script waits until
+# Java exits, which is when that window is closed, or straight away when no
+# window was opened.
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -13,35 +18,12 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Running application..." -ForegroundColor Green
 Write-Host ""
 
-$warningFilter = @(
-    "WARNING: package sun.misc not in java.base",
-    "WARNING: A terminally deprecated",
-    "WARNING: Please consider reporting",
-    "WARNING: sun.misc.Unsafe",
-    "WARNING: Final field",
-    "WARNING: Use --enable-final-field-mutation",
-    "WARNING: Mutating final fields"
-)
-
-$javaArgs = @(
-    "--add-opens", "java.base/java.lang=ALL-UNNAMED",
-    "-cp", "target/classes;target/dependency/*",
-    "com.danielh.App"
-) + $args
-
-$javaOutput = & java @javaArgs 2>&1
-$javaExit = $LASTEXITCODE
-foreach ($line in $javaOutput) {
-    $text = "$line"
-    $skip = $false
-    foreach ($pattern in $warningFilter) {
-        if ($text.Contains($pattern)) {
-            $skip = $true
-            break
-        }
-    }
-    if (-not $skip) {
-        Write-Output $text
-    }
-}
-exit $javaExit
+& java `
+    --enable-native-access=ALL-UNNAMED `
+    --sun-misc-unsafe-memory-access=allow `
+    --enable-final-field-mutation=ALL-UNNAMED `
+    --add-opens java.base/java.lang=ALL-UNNAMED `
+    -cp "target/classes;target/dependency/*" `
+    com.danielh.App `
+    @args
+exit $LASTEXITCODE

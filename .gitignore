@@ -5,8 +5,10 @@ target/
 *.ear
 *.class
 
-# Generated rockets
+# Generated rockets and the apogee chart written beside them
 rockets/GA_rocket_v*.ork
+rockets/GA_rocket_v*.csv
+rockets/GA_rocket_v*.png
 
 # Maven
 .m2/

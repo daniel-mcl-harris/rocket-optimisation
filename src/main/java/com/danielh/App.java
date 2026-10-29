@@ -34,11 +34,11 @@ public class App {
         }
         System.out.println("Motor: " + motor.describe());
 
-        runOptimisation(command.population, command.generations, rocketPath, motor);
+        runOptimisation(command.population, command.generations, rocketPath, motor, command.plot);
     }
     
     private static void runOptimisation(int population, int generations, String rocketPath,
-                                        MotorCatalogue.Selection motor) {
+                                        MotorCatalogue.Selection motor, boolean plot) {
         try {
             OpenRocketDocument baselineDoc = loadRocket(new File(rocketPath));
             if (baselineDoc == null) {
@@ -60,7 +60,7 @@ public class App {
             
             OptimisationReport report = RocketOptimizer.optimise(population, generations, rocketPath,
                 baselineNose, baselineBody, baselineRootChord, baselineTipChord, 
-                baselineHeight, baselineSweep, motor);
+                baselineHeight, baselineSweep, motor, plot);
             
             if (report == null) {
                 System.err.println("Optimisation failed");
@@ -98,9 +98,22 @@ public class App {
             RocketAnalysis.MassProperties optimisedMass = RocketAnalysis.massProperties(optimisedRocket);
             applyMassProperties(report, optimisedMass, false);
             
-            saveOptimisedRocket(optimisedDoc);
+            File saved = saveOptimisedRocket(optimisedDoc);
+            if (report.apogeeChart != null && saved != null) {
+                try {
+                    report.apogeeChart.writeBeside(saved);
+                    System.out.println("Apogee chart saved to: " + sibling(saved, ".png").getAbsolutePath());
+                    System.out.println("Apogee history saved to: " + sibling(saved, ".csv").getAbsolutePath());
+                } catch (Exception chartFailure) {
+                    System.err.println("Failed to save the apogee chart: " + chartFailure.getMessage());
+                }
+            }
             
             report.generateReport();
+            if (report.apogeeChart != null && report.apogeeChart.holdOpenUntilClosed()) {
+                System.out.println("Close the apogee chart window to finish.");
+                return;
+            }
             System.exit(0);
         } catch (Exception e) {
             System.err.println("Optimisation failed: " + e.getMessage());
@@ -267,6 +280,8 @@ public class App {
             report.baselineMaxAcceleration = flight.maxAcceleration;
             report.baselineLaunchRodVelocity = flight.launchRodVelocity;
             report.baselineFlightTime = flight.flightTime;
+            report.baselineDescentRate = flight.descentRate;
+            report.baselineDeploymentSpeed = flight.deploymentSpeed;
             report.baselineMaxMach = flight.maxMach;
             report.baselineMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.baselineMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
@@ -280,6 +295,8 @@ public class App {
             report.optimisedMaxAcceleration = flight.maxAcceleration;
             report.optimisedLaunchRodVelocity = flight.launchRodVelocity;
             report.optimisedFlightTime = flight.flightTime;
+            report.optimisedDescentRate = flight.descentRate;
+            report.optimisedDeploymentSpeed = flight.deploymentSpeed;
             report.optimisedMaxMach = flight.maxMach;
             report.optimisedMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.optimisedMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
@@ -315,7 +332,15 @@ public class App {
         return maxVersion + 1;
     }
     
-    private static void saveOptimisedRocket(OpenRocketDocument doc) {
+    private static File sibling(File rocketFile, String extension) {
+        String name = rocketFile.getName();
+        if (name.endsWith(".ork")) {
+            name = name.substring(0, name.length() - 4);
+        }
+        return new File(rocketFile.getParentFile(), name + extension);
+    }
+
+    private static File saveOptimisedRocket(OpenRocketDocument doc) {
         try {
             File rocketsDir = new File("rockets");
             if (!rocketsDir.exists()) {
@@ -329,8 +354,10 @@ public class App {
             saver.save(outputFile, doc);
             
             System.out.println("\nOptimised rocket saved to: " + outputFile.getAbsolutePath());
+            return outputFile;
         } catch (Exception e) {
             System.err.println("Failed to save optimised rocket: " + e.getMessage());
+            return null;
         }
     }
     

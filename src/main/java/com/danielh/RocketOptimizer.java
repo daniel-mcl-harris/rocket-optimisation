@@ -32,7 +32,7 @@ public class RocketOptimizer {
                                                double baselineNose, double baselineBody,
                                                double baselineRootChord, double baselineTipChord,
                                                double baselineHeight, double baselineSweepLength,
-                                               MotorCatalogue.Selection selectedMotor) {
+                                               MotorCatalogue.Selection selectedMotor, boolean plot) {
         long startTime = System.currentTimeMillis();
         rocketFilePath = rocketPath;
         motor = selectedMotor;
@@ -73,6 +73,14 @@ public class RocketOptimizer {
         System.out.println("\n=== ROCKET DESIGN OPTIMISATION ===");
         System.out.println("Population: " + populationSize + ", Generations: " + generations);
         System.out.println("Optimising: Nose Cone, Body Tube, Fin Parameters");
+
+        final ApogeeChart chart;
+        if (plot) {
+            chart = new ApogeeChart(generations);
+            chart.openWindow();
+        } else {
+            chart = null;
+        }
         
         final Genotype<DoubleGene> baselineGenotype = Genotype.of(
             DoubleChromosome.of(DoubleGene.of(baselineNose, NOSE_CONE_RANGE.min(), NOSE_CONE_RANGE.max())),
@@ -107,7 +115,11 @@ public class RocketOptimizer {
                         globalBest[0] = generationBest;
                     }
                     completed[0]++;
-                    progress.update(completed[0], bestApogee(globalBest[0].fitness()));
+                    double best = bestApogee(globalBest[0].fitness());
+                    progress.update(completed[0], best);
+                    if (chart != null) {
+                        chart.record(completed[0], best);
+                    }
                 });
         } finally {
             countRejections = false;
@@ -118,6 +130,7 @@ public class RocketOptimizer {
         
         OptimisationReport report = new OptimisationReport(populationSize, generations);
         report.rejectedCandidateEvaluations = rejectedEvaluations.get();
+        report.apogeeChart = chart;
         
         if (globalBest[0].fitness() > baselineFitness) {
             report.optimisedNoseCone = baselineNose;
