@@ -13,7 +13,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Running application..." -ForegroundColor Green
 Write-Host ""
 
-$warningFilter = @(
+$script:warningFilter = @(
     "WARNING: package sun.misc not in java.base",
     "WARNING: A terminally deprecated",
     "WARNING: Please consider reporting",
@@ -23,25 +23,64 @@ $warningFilter = @(
     "WARNING: Mutating final fields"
 )
 
+function Show-JavaLine([string]$text) {
+    if ([string]::IsNullOrEmpty($text)) {
+        return
+    }
+    foreach ($pattern in $script:warningFilter) {
+        if ($text.Contains($pattern)) {
+            return
+        }
+    }
+    Write-Host $text
+}
+
 $javaArgs = @(
     "--add-opens", "java.base/java.lang=ALL-UNNAMED",
     "-cp", "target/classes;target/dependency/*",
     "com.danielh.App"
 ) + $args
 
-$javaOutput = & java @javaArgs 2>&1
-$javaExit = $LASTEXITCODE
-foreach ($line in $javaOutput) {
-    $text = "$line"
-    $skip = $false
-    foreach ($pattern in $warningFilter) {
-        if ($text.Contains($pattern)) {
-            $skip = $true
-            break
-        }
-    }
-    if (-not $skip) {
-        Write-Output $text
+# Stream stdout and stderr as lines arrive. Assigning `& java 2>&1` to a
+# variable holds every line until Java exits, which hides the progress lines
+# and would also hide the report for as long as the chart window stays open.
+# The Swing chart does not use this stream: it is a separate desktop window.
+$quoted = foreach ($arg in $javaArgs) {
+    if ($arg -match '[\s"]') {
+        '"' + ($arg -replace '"', '\"') + '"'
+    } else {
+        $arg
     }
 }
-exit $javaExit
+
+$start = New-Object System.Diagnostics.ProcessStartInfo
+$start.FileName = "java"
+$start.Arguments = ($quoted -join ' ')
+$start.UseShellExecute = $false
+$start.RedirectStandardOutput = $true
+$start.RedirectStandardError = $true
+$start.CreateNoWindow = $true
+$start.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+$start.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+
+$process = New-Object System.Diagnostics.Process
+$process.StartInfo = $start
+$process.add_ErrorDataReceived({
+    $text = $EventArgs.Data
+    if ([string]::IsNullOrEmpty($text)) {
+        return
+    }
+    foreach ($pattern in $script:warningFilter) {
+        if ($text.Contains($pattern)) {
+            return
+        }
+    }
+    Write-Host $text
+})
+[void]$process.Start()
+$process.BeginErrorReadLine()
+while (($line = $process.StandardOutput.ReadLine()) -ne $null) {
+    Show-JavaLine $line
+}
+$process.WaitForExit()
+exit $process.ExitCode

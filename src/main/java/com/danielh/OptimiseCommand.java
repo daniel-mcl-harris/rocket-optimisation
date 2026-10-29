@@ -17,11 +17,14 @@ public final class OptimiseCommand {
         public final String motor;
         public final int population;
         public final int generations;
+        /** When false, skip the live chart and do not write the CSV or PNG. */
+        public final boolean plot;
 
-        Args(String motor, int population, int generations) {
+        Args(String motor, int population, int generations, boolean plot) {
             this.motor = motor;
             this.population = population;
             this.generations = generations;
+            this.plot = plot;
         }
     }
 
@@ -36,13 +39,14 @@ public final class OptimiseCommand {
 
     public static String usage() {
         return String.join("\n",
-                "Usage: optimise [motor] [population] [generations]",
-                "       optimise [motor] [--pop <population>] [--gens <generations>]",
+                "Usage: optimise [motor] [population] [generations] [--no-plot]",
+                "       optimise [motor] [--pop <population>] [--gens <generations>] [--no-plot]",
                 "Valid commands: optimise",
                 "Defaults: motor " + DEFAULT_MOTOR + ", population " + DEFAULT_POPULATION
                         + ", generations " + DEFAULT_GENERATIONS + ".",
                 "population and generations must be positive integers.",
-                "A single number after the motor sets the population. Use --gens to set only the generation count.");
+                "A single number after the motor sets the population. Use --gens to set only the generation count.",
+                "--no-plot skips the apogee chart window and does not write the CSV or PNG.");
     }
 
     public static Args parse(String[] args) {
@@ -53,11 +57,17 @@ public final class OptimiseCommand {
         String motor = null;
         Integer population = null;
         Integer generations = null;
+        boolean plot = true;
         List<String> positionals = new ArrayList<>();
 
         for (int i = 1; i < args.length; i++) {
             String token = args[i];
-            if ("--pop".equals(token) || "--gens".equals(token)) {
+            if ("--no-plot".equals(token)) {
+                if (!plot) {
+                    throw new UsageException("plot was given more than once.\n" + usage());
+                }
+                plot = false;
+            } else if ("--pop".equals(token) || "--gens".equals(token)) {
                 if (i + 1 >= args.length) {
                     throw new UsageException(usage());
                 }
@@ -99,7 +109,8 @@ public final class OptimiseCommand {
         return new Args(
                 motor == null ? DEFAULT_MOTOR : motor,
                 population == null ? DEFAULT_POPULATION : population,
-                generations == null ? DEFAULT_GENERATIONS : generations);
+                generations == null ? DEFAULT_GENERATIONS : generations,
+                plot);
     }
 
     private static int assignOnce(Integer current, int value, String name) {

@@ -19,6 +19,8 @@ public class OptimisationReport {
     public double baselineMaxAcceleration;
     public double baselineLaunchRodVelocity;
     public double baselineFlightTime;
+    public double baselineDescentRate;
+    public double baselineDeploymentSpeed;
     public double baselineMaxMach;
     public double baselineMinFlightStabilityCalibres;
     public double baselineMaxFlightStabilityCalibres;
@@ -40,6 +42,8 @@ public class OptimisationReport {
     public double optimisedMaxAcceleration;
     public double optimisedLaunchRodVelocity;
     public double optimisedFlightTime;
+    public double optimisedDescentRate;
+    public double optimisedDeploymentSpeed;
     public double optimisedMaxMach;
     public double optimisedMinFlightStabilityCalibres;
     public double optimisedMaxFlightStabilityCalibres;
@@ -80,6 +84,8 @@ public class OptimisationReport {
     
     // Store the best phenotype for potential use
     public Phenotype<DoubleGene, Double> bestPhenotype;
+    /** Null when the run was started with {@code --no-plot}. */
+    public ApogeeChart apogeeChart;
     
     public OptimisationReport(int popSize, int gens) {
         this.populationSize = popSize;
@@ -124,6 +130,8 @@ public class OptimisationReport {
         designRow("Max acceleration (m/s^2)", baselineMaxAcceleration, optimisedMaxAcceleration, 2);
         designRow("Max Mach", baselineMaxMach, optimisedMaxMach, 3);
         designRow("Velocity off rod (m/s)", baselineLaunchRodVelocity, optimisedLaunchRodVelocity, 2);
+        designRow("Descent rate (m/s)", baselineDescentRate, optimisedDescentRate, 2);
+        designRow("Deployment speed (m/s)", baselineDeploymentSpeed, optimisedDeploymentSpeed, 2);
         designRow("In-flight min (cal)", baselineMinFlightStabilityCalibres, optimisedMinFlightStabilityCalibres, 2);
         designRow("In-flight max (cal)", baselineMaxFlightStabilityCalibres, optimisedMaxFlightStabilityCalibres, 2);
 
