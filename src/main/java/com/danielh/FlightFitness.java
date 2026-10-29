@@ -5,7 +5,8 @@ import java.util.List;
 
 /**
  * Fitness is the mean apogee across the wind cases. A higher value is better.
- * Stability is not part of the score.
+ * Static margin and the raw in-flight range are not part of the score.
+ * {@link AscentStability} can reject a flight before that score is used.
  */
 public final class FlightFitness {
 

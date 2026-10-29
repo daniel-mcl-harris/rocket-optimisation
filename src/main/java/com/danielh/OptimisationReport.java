@@ -71,6 +71,12 @@ public class OptimisationReport {
     public String[] optimisedComponentCG;
     
     public long executionTimeMs;
+    /** GA evaluations that {@link AscentStability} rejected. The baseline flight is not included. */
+    public int rejectedCandidateEvaluations;
+    public boolean baselineRejected;
+    public String baselineRejectionReason = "";
+    public boolean optimisedRejected;
+    public String optimisedRejectionReason = "";
     
     // Store the best phenotype for potential use
     public Phenotype<DoubleGene, Double> bestPhenotype;
@@ -132,10 +138,24 @@ public class OptimisationReport {
             }
         }
 
+        System.out.println("\nIn-flight instability rejected " + rejectedCandidateEvaluations
+                + " candidate evaluations.");
+        System.out.println(AscentStability.thresholdSummary());
+        System.out.println(ascentLine("Base design", baselineRejected, baselineRejectionReason));
+        System.out.println(ascentLine("Optimised design", optimisedRejected, optimisedRejectionReason));
+
         System.out.println("\n" + border);
         String verdict = FlightFitness.verdict(baselineApogee, optimisedApogee);
         System.out.println(center(verdict, 72));
         System.out.println(border + "\n");
+    }
+
+    private static String ascentLine(String design, boolean rejected, String reason) {
+        if (!rejected) {
+            return design + " passed the in-flight check.";
+        }
+        String detail = reason == null || reason.isBlank() ? "unstable ascent" : reason;
+        return design + " was rejected for in-flight instability: " + detail;
     }
 
     private static void printTableHeader() {

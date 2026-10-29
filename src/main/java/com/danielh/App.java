@@ -271,6 +271,8 @@ public class App {
             report.baselineMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.baselineMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
             report.baselineWindCases = ensemble.caseLines;
+            report.baselineRejected = ensemble.rejected;
+            report.baselineRejectionReason = ensemble.rejectionReason;
         } else {
             report.optimisedApogee = flight.apogee;
             report.optimisedTimeToApogee = flight.timeToApogee;
@@ -282,6 +284,8 @@ public class App {
             report.optimisedMinFlightStabilityCalibres = ensemble.minimumInFlightStability;
             report.optimisedMaxFlightStabilityCalibres = ensemble.maximumInFlightStability;
             report.optimisedWindCases = ensemble.caseLines;
+            report.optimisedRejected = ensemble.rejected;
+            report.optimisedRejectionReason = ensemble.rejectionReason;
         }
     }
     

@@ -62,14 +62,20 @@ public final class RocketAnalysis {
         public final double maximumInFlightStability;
         public final FlightResult[] cases;
         public final String[] caseLines;
+        /** True when any wind case failed {@link AscentStability}. */
+        public final boolean rejected;
+        /** Wind name and reason for each rejected case. Empty when {@link #rejected} is false. */
+        public final String rejectionReason;
 
         Ensemble(FlightResult average, double minimumInFlightStability, double maximumInFlightStability,
-                 FlightResult[] cases, String[] caseLines) {
+                 FlightResult[] cases, String[] caseLines, boolean rejected, String rejectionReason) {
             this.average = average;
             this.minimumInFlightStability = minimumInFlightStability;
             this.maximumInFlightStability = maximumInFlightStability;
             this.cases = cases;
             this.caseLines = caseLines;
+            this.rejected = rejected;
+            this.rejectionReason = rejectionReason;
         }
     }
 
@@ -124,10 +130,12 @@ public final class RocketAnalysis {
         public final double maxMach;
         public final double minStabilityCalibres;
         public final double maxStabilityCalibres;
+        public final AscentStability.Result ascent;
 
         FlightResult(double apogee, double timeToApogee, double maxVelocity, double maxAcceleration,
                      double launchRodVelocity, double flightTime, double maxMach,
-                     double minStabilityCalibres, double maxStabilityCalibres) {
+                     double minStabilityCalibres, double maxStabilityCalibres,
+                     AscentStability.Result ascent) {
             this.apogee = apogee;
             this.timeToApogee = timeToApogee;
             this.maxVelocity = maxVelocity;
@@ -137,6 +145,7 @@ public final class RocketAnalysis {
             this.maxMach = maxMach;
             this.minStabilityCalibres = minStabilityCalibres;
             this.maxStabilityCalibres = maxStabilityCalibres;
+            this.ascent = ascent;
         }
     }
 
@@ -268,6 +277,7 @@ public final class RocketAnalysis {
         double minStability = Double.NaN;
         double maxStability = Double.NaN;
         String[] lines = new String[results.length];
+        List<String> reasons = new ArrayList<>();
         for (int i = 0; i < results.length; i++) {
             WindCases.Case wind = cases.get(i);
             FlightResult flight = results[i];
@@ -277,6 +287,9 @@ public final class RocketAnalysis {
                     "    %s (%.0f m/s, turbulence %.2f): apogee %.1f m, rod %.1f m/s, min stability %.2f cal",
                     wind.name, wind.averageMetresPerSecond, wind.turbulenceIntensity,
                     flight.apogee, flight.launchRodVelocity, flight.minStabilityCalibres);
+            if (flight.ascent != null && flight.ascent.rejected) {
+                reasons.add(wind.name + ": " + flight.ascent.reason);
+            }
         }
         FlightResult average = new FlightResult(
                 mean(results, flight -> flight.apogee),
@@ -287,8 +300,10 @@ public final class RocketAnalysis {
                 mean(results, flight -> flight.flightTime),
                 mean(results, flight -> flight.maxMach),
                 minStability,
-                maxStability);
-        return new Ensemble(average, minStability, maxStability, results, lines);
+                maxStability,
+                AscentStability.pass());
+        String rejectionReason = String.join("; ", reasons);
+        return new Ensemble(average, minStability, maxStability, results, lines, !reasons.isEmpty(), rejectionReason);
     }
 
     private static double mean(FlightResult[] results, java.util.function.ToDoubleFunction<FlightResult> value) {
@@ -345,7 +360,8 @@ public final class RocketAnalysis {
                 data.getFlightTime(),
                 data.getMaxMachNumber(),
                 minStability,
-                maxStability);
+                maxStability,
+                AscentStability.assess(data));
     }
 
     private static double defaultMach() {

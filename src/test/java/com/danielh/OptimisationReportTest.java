@@ -77,8 +77,39 @@ public class OptimisationReportTest {
         assertTrue(text.contains("OPTIMISATION SUCCESSFUL"));
         assertTrue(text.contains("WARNING: stability is outside 1 to 6 calibres"));
         assertTrue(text.contains("Worst in-flight margin is -21.70 cal"));
+        assertTrue(text.contains("In-flight instability rejected 0 candidate evaluations."));
+        assertTrue(text.contains("Thresholds:"));
+        assertTrue(text.contains("1.0 cal"));
+        assertTrue(text.contains("30 m/s"));
+        assertTrue(text.contains("Base design passed the in-flight check."));
+        assertTrue(text.contains("Optimised design passed the in-flight check."));
         assertFalse(text.contains("[BASE DESIGN]"));
         assertFalse(text.contains("[OPTIMISED DESIGN]"));
         assertFalse(text.contains("Component Breakdown"));
+    }
+
+    @Test
+    public void reportNamesADesignRejectedForInFlightInstability() {
+        OptimisationReport report = new OptimisationReport(10, 5);
+        report.executionTimeMs = 1000;
+        report.baselineApogee = 2488.0;
+        report.optimisedApogee = 2640.0;
+        report.rejectedCandidateEvaluations = 17;
+        report.optimisedRejected = true;
+        report.optimisedRejectionReason = "breezy: tumble at 15.34 s";
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        PrintStream previous = System.out;
+        System.setOut(new PrintStream(buffer));
+        try {
+            report.generateReport();
+        } finally {
+            System.setOut(previous);
+        }
+        String text = buffer.toString();
+        assertTrue(text.contains("In-flight instability rejected 17 candidate evaluations."));
+        assertTrue(text.contains(
+                "Optimised design was rejected for in-flight instability: breezy: tumble at 15.34 s"));
+        assertTrue(text.contains("Base design passed the in-flight check."));
     }
 }
